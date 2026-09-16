@@ -1,24 +1,14 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it using the metadata below."
-title: "Golden Dashboard"
-type: software
-version: 1.0.0
-date-released: 2026-09-15
-license: GPL-2.0-or-later
-repository-code: "https://github.com/mtrik/golden-dashboard"
-url: "https://github.com/mtrik/golden-dashboard"
-abstract: >
-  Golden Dashboard is a WordPress plugin providing Elementor widgets for a
-  front-end user wallet dashboard, supporting both a standard cash wallet
-  and a gold-denominated wallet, with an accompanying admin panel for
-  transaction management, cashback rules, withdrawal requests, and
-  security settings.
+message: "If you use this software, please cite it as below."
 authors:
-  - given-names: "Seyedhossein"
-    family-names: "Razavinasab"
-    website: "https://www.razavinasab.com/"
-	orcid: "https://orcid.org/0000-0001-5101-9340"
-  - given-names: "Simin"
-    family-names: "Yousefi"
-    website: "https://www.siminyousefi.com/"
-    orcid: "https://orcid.org/0009-0003-2137-3180"
+- family-names: "Razavinasab"
+  given-names: "Seyedhossein"
+  orcid: "https://orcid.org/0000-0001-5101-9340"
+- family-names: "Yousefi"
+  given-names: "Simin"
+  orcid: "https://orcid.org/0009-0003-2137-3180"
+title: "golden-dashboard"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2026-09-16
+url: "https://github.com/mtrik/golden-dashboard"
