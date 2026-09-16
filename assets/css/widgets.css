@@ -1,0 +1,1285 @@
+
+
+.gdb-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+    transition: 0.25s;
+    overflow: hidden;
+}
+
+.gdb-card:hover {
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.08);
+}
+
+.gdb-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #1f2937;
+}
+
+.gdb-price {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+
+
+.gdb-wallet-widget {
+    text-align: center;
+}
+
+.gdb-wallet-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    transition: transform 0.2s ease;
+}
+
+.gdb-wallet-icon:hover {
+    transform: scale(1.05);
+}
+
+.gdb-wallet-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.gdb-wallet-description {
+    margin-top: 12px;
+    color: #6b7280;
+    line-height: 1.8;
+    font-size: 14px;
+}
+
+.gdb-wallet-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+}
+
+.gdb-wallet-stat {
+    font-size: 13px;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.gdb-wallet-stat strong {
+    color: #111827;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.gdb-wallet-stat-divider {
+    width: 1px;
+    height: 24px;
+    background: #e5e7eb;
+    flex-shrink: 0;
+}
+
+.gdb-wallet-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.gdb-wallet-button {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    line-height: 1.5;
+    color: #ffffff;
+}
+
+.gdb-wallet-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
+    color: #ffffff;
+}
+
+.gdb-wallet-button:active {
+    transform: translateY(0);
+}
+
+.gdb-wallet-button-charge {
+    background: #22c55e;
+}
+
+.gdb-wallet-button-charge:hover {
+    background: #16a34a;
+}
+
+.gdb-wallet-button-withdraw {
+    background: #2563eb;
+}
+
+.gdb-wallet-button-withdraw:hover {
+    background: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+    .gdb-wallet-stats {
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 12px;
+    }
+    .gdb-wallet-stat-divider {
+        display: none;
+    }
+    .gdb-wallet-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .gdb-wallet-button {
+        text-align: center;
+    }
+    .gdb-wallet-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 26px;
+    }
+    .gdb-wallet-icon svg {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+
+
+.wallet-stats-grid {
+    display: grid;
+    gap: 18px;
+}
+
+.wallet-stats-grid.columns-1 { grid-template-columns: repeat(1, 1fr); }
+.wallet-stats-grid.columns-2 { grid-template-columns: repeat(2, 1fr); }
+.wallet-stats-grid.columns-3 { grid-template-columns: repeat(3, 1fr); }
+.wallet-stats-grid.columns-4 { grid-template-columns: repeat(4, 1fr); }
+
+.wallet-stats-grid.layout-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.wallet-stats-grid.layout-vertical .wallet-stat-item {
+    width: 100%;
+}
+
+@media (max-width: 767px) {
+    .wallet-stats-grid.layout-auto.columns-2,
+    .wallet-stats-grid.layout-auto.columns-3,
+    .wallet-stats-grid.layout-auto.columns-4 {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .wallet-stats-grid.layout-auto .wallet-stat-item {
+        width: 100%;
+    }
+}
+
+.wallet-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 14px;
+    transition: 0.25s;
+}
+
+.wallet-stat-item:hover {
+    border-color: #d7dee8;
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-icon i {
+    font-size: 20px;
+}
+.stat-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.stat-icon-credit { background: #dcfce7; color: #16a34a; }
+.stat-icon-debit { background: #fee2e2; color: #dc2626; }
+.stat-icon-total { background: #dbeafe; color: #2563eb; }
+.stat-icon-balance { background: #f3e8ff; color: #9333ea; }
+
+.stat-content {
+    flex: 1;
+}
+.stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.5;
+}
+.stat-count {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+
+
+.gdb-transactions-wrapper {
+    width: 100%;
+}
+.gdb-transactions-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.gdb-transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 12px;
+    padding: 14px 18px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+}
+
+.gdb-transaction-item:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.gdb-transaction-amount {
+    flex-shrink: 0;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: left;
+    direction: ltr;
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    min-width: 80px;
+}
+
+.gdb-transaction-amount-credit {
+    color: #22c55e;
+}
+.gdb-transaction-amount-debit {
+    color: #ef4444;
+}
+
+.gdb-amount-sign {
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.gdb-transaction-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gdb-transaction-type {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.gdb-transaction-date-inline {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+    direction: ltr;
+    text-align: left;
+}
+
+.gdb-transaction-description {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    margin-top: 1px;
+}
+
+.gdb-transaction-balance {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.gdb-transaction-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    font-size: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    line-height: 1;
+    color: #ffffff;
+    user-select: none;
+    transition: transform 0.2s ease;
+    align-self: center;
+}
+
+.gdb-transaction-item:hover .gdb-transaction-icon {
+    transform: scale(1.08);
+}
+
+.gdb-transaction-credit .gdb-transaction-icon {
+    background: #22c55e;
+}
+.gdb-transaction-debit .gdb-transaction-icon {
+    background: #ef4444;
+}
+
+.gdb-transaction-divider {
+    width: 100%;
+    height: 1px;
+    background: #e5e7eb;
+    margin: 6px 0;
+}
+
+
+.gdb-history-button-wrap {
+    text-align: center;
+    margin-top: 16px;
+}
+
+.gdb-history-button {
+    display: inline-block;
+    background: #2563eb;
+    color: #ffffff;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    line-height: 1.5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.gdb-history-button:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.gdb-history-button:active {
+    transform: translateY(0);
+}
+
+
+.gdb-full-history {
+    margin-top: 24px;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #edf0f5;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.gdb-full-history-inner {
+    width: 100%;
+}
+
+.gdb-history-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.gdb-history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.gdb-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.gdb-filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.gdb-filter-group select {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    min-width: 120px;
+}
+
+.gdb-filter-group select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.gdb-filter-submit {
+    padding: 6px 20px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+    line-height: 1.5;
+}
+
+.gdb-filter-submit:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.gdb-filter-submit:active {
+    transform: translateY(0);
+}
+
+.gdb-filter-submit:disabled {
+    opacity: 0.7;
+    cursor: default;
+    transform: none;
+}
+
+.gdb-history-filters.gdb-filter-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.gdb-history-results {
+    transition: opacity 0.15s ease;
+}
+
+.gdb-history-table-wrap {
+    overflow-x: auto;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.gdb-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: right;
+    direction: rtl;
+    min-width: 600px;
+}
+
+.gdb-history-table thead th {
+    background: #f8fafc;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.gdb-history-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #111827;
+    vertical-align: middle;
+}
+
+.gdb-history-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.gdb-history-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.gdb-badge-credit {
+    background: #dcfce7;
+    color: #16a34a;
+}
+.gdb-badge-debit {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.gdb-history-amount {
+    font-weight: 700;
+    direction: ltr;
+    display: inline-block;
+}
+
+.gdb-amount-credit {
+    color: #22c55e;
+}
+.gdb-amount-debit {
+    color: #ef4444;
+}
+
+
+.gdb-transaction-status {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+.gdb-status-pending { background: #fef3c7; color: #d97706; }
+.gdb-status-processing { background: #dbeafe; color: #2563eb; }
+.gdb-status-completed { background: #dcfce7; color: #16a34a; }
+.gdb-status-on-hold { background: #f3e8ff; color: #9333ea; }
+.gdb-status-cancelled { background: #e5e7eb; color: #6b7280; }
+.gdb-status-refunded { background: #fef2f2; color: #dc2626; }
+.gdb-status-failed { background: #fee2e2; color: #dc2626; }
+.gdb-status-rejected { background: #fee2e2; color: #dc2626; }
+
+.gdb-transaction-item.gdb-transaction-status-pending {
+    border-right: 4px solid #f59e0b !important;
+    background-color: #fffbeb;
+}
+
+.gdb-transaction-item.gdb-transaction-status-pending:hover {
+    background-color: #fef3c7;
+}
+
+.gdb-transaction-admin-info {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    line-height: 1.6;
+}
+
+.gdb-transaction-admin-info span {
+    display: inline-block;
+    background: #f3f4f6;
+    padding: 1px 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+}
+
+.gdb-transaction-admin-info p {
+    margin: 0 0 2px 0;
+}
+
+
+@media (max-width: 640px) {
+    .gdb-transaction-item {
+        flex-wrap: wrap;
+        gap: 10px 12px;
+        padding: 12px 14px;
+    }
+    .gdb-transaction-amount {
+        order: 1;
+        font-size: 16px;
+        min-width: 60px;
+    }
+    .gdb-transaction-info {
+        order: 2;
+        flex: 1 1 calc(100% - 80px);
+    }
+    .gdb-transaction-icon {
+        order: 3;
+        width: 28px;
+        height: 28px;
+        font-size: 21px;
+    }
+    .gdb-history-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 14px;
+    }
+    .gdb-filter-group select {
+        flex: 1;
+        min-width: 100px;
+    }
+    .gdb-filter-submit {
+        width: 100%;
+        text-align: center;
+        padding: 10px;
+    }
+    .gdb-history-table thead {
+        display: none;
+    }
+    .gdb-history-table, .gdb-history-table tbody, .gdb-history-table tr, .gdb-history-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .gdb-history-table {
+        min-width: 0;
+    }
+    .gdb-history-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        padding: 12px 0;
+    }
+    .gdb-history-table tbody td {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 6px 12px;
+        border-bottom: none;
+        text-align: right;
+        font-size: 13px;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .gdb-history-table tbody td::before {
+        content: attr(data-title);
+        font-weight: 600;
+        color: #6b7280;
+        white-space: nowrap;
+        margin-left: 0;
+        margin-bottom: 4px;
+    }
+    .gdb-history-table tbody td:last-child {
+        border-bottom: none;
+    }
+    .gdb-full-history {
+        padding: 16px;
+    }
+    .gdb-history-title {
+        font-size: 18px;
+    }
+}
+
+
+
+.gdb-topup-widget {
+    text-align: center;
+}
+
+.gdb-suggested-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 10px;
+}
+
+.gdb-suggested-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.gdb-suggested-btn {
+    padding: 8px 16px;
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.gdb-suggested-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+}
+
+.gdb-suggested-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.gdb-input-group {
+    margin-top: 16px;
+}
+
+.gdb-input-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.gdb-amount-input {
+    width: 100%;
+    max-width: 300px; 
+    margin: 0 auto;
+    padding: 12px 16px;
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.gdb-amount-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}
+
+.gdb-input-helper {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.gdb-topup-submit-wrap {
+    margin-top: 20px;
+}
+
+.gdb-topup-submit {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    background: #22c55e;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.gdb-topup-submit:hover {
+    background: #16a34a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.gdb-topup-submit:active {
+    transform: translateY(0);
+}
+
+
+
+.gdb-topup-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    padding: 20px;
+    animation: gdbTopupFadeIn 0.2s ease-out;
+}
+
+.gdb-topup-popup-box {
+    position: relative;
+    background: #fff;
+    border-radius: 18px;
+    padding: 32px 28px 24px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    direction: rtl;
+    font-family: inherit;
+    animation: gdbTopupPopIn 0.25s ease-out;
+}
+
+.gdb-topup-popup-close {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.gdb-topup-popup-close:hover {
+    color: #4b5563;
+}
+
+.gdb-topup-popup-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.gdb-topup-popup-icon-success {
+    background: #dcfce7;
+}
+.gdb-topup-popup-icon-pending {
+    background: #fef3c7;
+}
+
+.gdb-topup-popup-check {
+    width: 44px;
+    height: 44px;
+}
+
+.gdb-topup-popup-check-circle {
+    stroke: #16a34a;
+    stroke-width: 2.5;
+    stroke-dasharray: 151;
+    stroke-dashoffset: 151;
+    animation: gdbTopupCircle 0.45s ease-out forwards;
+}
+
+.gdb-topup-popup-check-mark {
+    stroke: #16a34a;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+    animation: gdbTopupCheck 0.3s 0.35s ease-out forwards;
+}
+
+.gdb-topup-popup-warning {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    font-size: 26px;
+    font-weight: 700;
+    color: #d97706;
+}
+
+.gdb-topup-popup-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 6px;
+}
+
+.gdb-topup-popup-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 18px;
+}
+
+.gdb-topup-popup-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0 22px;
+    font-size: 14px;
+}
+
+.gdb-topup-popup-table td {
+    padding: 9px 4px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+}
+
+.gdb-topup-popup-table tr:last-child td {
+    border-bottom: none;
+}
+
+.gdb-topup-popup-table td:first-child {
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+.gdb-topup-popup-table td:last-child {
+    font-weight: 700;
+    text-align: left;
+}
+
+.gdb-topup-popup-ok {
+    width: 100%;
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.gdb-topup-popup-ok:hover {
+    background: #15803d;
+}
+
+@keyframes gdbTopupFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes gdbTopupPopIn {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+@keyframes gdbTopupCircle {
+    to { stroke-dashoffset: 0; }
+}
+@keyframes gdbTopupCheck {
+    to { stroke-dashoffset: 0; }
+}
+
+
+
+.gdb-withdraw-widget {
+    text-align: center;
+}
+
+.gdb-withdraw-balance-wrap {
+    margin-bottom: 16px;
+    font-size: 16px;
+}
+
+.gdb-withdraw-balance-label {
+    color: #374151;
+    font-weight: 500;
+}
+
+.gdb-withdraw-balance-value {
+    color: #16a34a;
+    font-weight: 700;
+    font-size: 20px;
+    margin-right: 6px;
+}
+
+.gdb-withdraw-submit {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.gdb-withdraw-submit:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.gdb-withdraw-submit:active {
+    transform: translateY(0);
+}
+
+.gdb-withdraw-submit:disabled {
+    opacity: 0.7;
+    cursor: default;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.gdb-withdraw-message,
+.gdb-topup-message,
+.gdb-gold-wallet-message {
+    position: relative;
+    padding: 10px 40px 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    display: none;
+}
+.gdb-withdraw-message.error,
+.gdb-topup-message.error,
+.gdb-gold-wallet-message.error {
+    background: #fee2e2;
+    color: #dc2626;
+    display: block;
+}
+.gdb-withdraw-message.success,
+.gdb-topup-message.success,
+.gdb-gold-wallet-message.success {
+    background: #dcfce7;
+    color: #16a34a;
+    display: block;
+}
+.gdb-message-close {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    padding: 2px 4px;
+}
+.gdb-message-close:hover {
+    opacity: 1;
+}
+
+.gdb-withdraw-pending-notice {
+    background: #fef3c7;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    color: #92400e;
+}
+
+
+.gdb-topup-icon,
+.gdb-withdraw-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    transition: transform 0.2s ease;
+}
+
+.gdb-topup-icon:hover,
+.gdb-withdraw-icon:hover {
+    transform: scale(1.05);
+}
+
+.gdb-topup-icon svg,
+.gdb-withdraw-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.gdb-icon-fallback {
+    font-size: 32px;
+}
+
+
+.gdb-wallet-container {
+    max-width: 100%;
+}
+.wallet-balance-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+}
+.wallet-balance-card__inner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.wallet-balance-card__icon {
+    flex-shrink: 0;
+}
+.wallet-balance-card__content {
+    flex: 1;
+}
+.wallet-balance-card__label {
+    font-size: 14px;
+    color: #6b7280;
+}
+.wallet-balance-card__amount {
+    font-size: 28px;
+    font-weight: 700;
+    color: #16a34a;
+}
+.wallet-balance-card__description {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wallet-balance-card__actions {
+    margin-top: 16px;
+}
+.gdb-gold-wallet-widget,
+.gdb-gold-balance-widget {
+    text-align: center;
+}
+.gdb-gold-wallet-widget .gdb-input-group,
+.gdb-gold-wallet-widget .gdb-suggested-grid,
+.gdb-gold-wallet-widget .gdb-topup-submit-wrap,
+.gdb-gold-wallet-widget form {
+    text-align: center;
+}
+.gdb-gold-wallet-widget .gdb-suggested-grid {
+    justify-content: center;
+}
+.gdb-gold-wallet-widget .gdb-amount-input {
+    text-align: center;
+    margin: 0 auto;
+}
+.gdb-gold-wallet-price-row,
+.gdb-gold-wallet-balance-row,
+.gdb-gold-wallet-total-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eef0f2;
+    font-size: 14px;
+    text-align: center;
+}
+.gdb-gold-wallet-total-row {
+    margin-top: 8px;
+    font-weight: 700;
+    border-bottom: none;
+    border-top: 1px dashed #d1d5db;
+    padding-top: 12px;
+}
+.gdb-gold-wallet-unit-price,
+.gdb-gold-wallet-my-balance,
+.gdb-gold-wallet-total-price {
+    color: #16a34a;
+    font-weight: 700;
+}
+.gdb-gold-wallet-use-balance-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #4b5563;
+    margin: 10px 0;
+    text-align: center;
+    cursor: pointer;
+}
+.gdb-gold-wallet-use-balance-row input[type="checkbox"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+.gdb-gold-wallet-use-balance-row small {
+    color: #6b7280;
+}
+.gdb-gold-wallet-split-info {
+    text-align: center;
+    font-size: 13px;
+    color: #b45309;
+    background: #fff7ed;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+}
+
+.gdb-gold-balance-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.gdb-gold-balance-item {
+    background: #f9fafb;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+    width: 100%;
+}
+.gdb-gold-balance-item-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.gdb-gold-balance-item-amount {
+    font-size: 18px;
+    font-weight: 700;
+    color: #b45309;
+}
+.gdb-gold-balance-item-equivalent {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+.gdb-gold-balance-empty {
+    text-align: center;
+    color: #6b7280;
+    padding: 20px 0;
+}
