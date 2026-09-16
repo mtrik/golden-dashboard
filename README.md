@@ -41,8 +41,25 @@ golden-dashboard/
 
 ## Authors
 
-- **Seyedhossein Razavinasab** — [razavinasab.com](https://www.razavinasab.com/)
-- **Simin Yousefi** — [siminyousefi.com](https://www.siminyousefi.com/)
+- **Seyedhossein Razavinasab**
+<a href="https://orcid.org/0000-0001-5101-9340"
+   target="_blank"
+   rel="noopener noreferrer"
+   style="display: inline-block; vertical-align: middle;">
+    <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png"
+         alt="ORCID iD"
+         style="width: 18px; height: 18px;">
+</a>
+
+- **Simin Yousefi**
+<a href="https://orcid.org/0009-0003-2137-3180"
+   target="_blank"
+   rel="noopener noreferrer"
+   style="display: inline-block; vertical-align: middle;">
+    <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png"
+         alt="ORCID iD"
+         style="width: 18px; height: 18px;">
+</a>
 
 ## License
 
