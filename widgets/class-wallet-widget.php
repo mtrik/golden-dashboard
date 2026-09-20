@@ -778,7 +778,7 @@ class GDB_Wallet_Widget extends GDB_Base_Widget
 
         if (!is_user_logged_in()) {
 
-            echo gdb_login_required();
+            echo wp_kses_post(gdb_login_required());
 
             return;
 
@@ -835,7 +835,7 @@ class GDB_Wallet_Widget extends GDB_Base_Widget
             <?php endif; ?>
 
             <div class="gdb-price">
-                <?php echo GDB_Wallet::balance_html(); ?>
+                <?php echo wp_kses_post(GDB_Wallet::balance_html()); ?>
             </div>
 
             <?php if ($settings['show_description'] === 'yes') : ?>
@@ -860,7 +860,7 @@ class GDB_Wallet_Widget extends GDB_Base_Widget
                                 if ($key === 'count') {
                                     echo esc_html(number_format_i18n($stat['value']));
                                 } else {
-                                    echo gdb_price($stat['value']);
+                                    echo wp_kses_post(gdb_price($stat['value']));
                                 }
                                 ?>
                             </strong>

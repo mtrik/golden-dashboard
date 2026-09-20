@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 
 
@@ -422,7 +430,7 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
     protected function render()
     {
         if (!is_user_logged_in()) {
-            echo gdb_login_required();
+            echo wp_kses_post(gdb_login_required());
             return;
         }
 
@@ -516,8 +524,8 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
                     </div>
                     <div class="stat-content">
                         <div class="stat-label"><?php echo esc_html($settings['credit_title']); ?></div>
-                        <div class="stat-value"><?php echo gdb_price($credit); ?></div>
-                        <div class="stat-count"><?php echo number_format_i18n($credit_count); ?> <?php _e('تراکنش', 'golden-dashboard'); ?></div>
+                        <div class="stat-value"><?php echo wp_kses_post(gdb_price($credit)); ?></div>
+                        <div class="stat-count"><?php echo esc_html(number_format_i18n($credit_count)); ?> <?php esc_html_e('تراکنش', 'golden-dashboard'); ?></div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -529,8 +537,8 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
                     </div>
                     <div class="stat-content">
                         <div class="stat-label"><?php echo esc_html($settings['debit_title']); ?></div>
-                        <div class="stat-value"><?php echo gdb_price($debit); ?></div>
-                        <div class="stat-count"><?php echo number_format_i18n($debit_count); ?> <?php _e('تراکنش', 'golden-dashboard'); ?></div>
+                        <div class="stat-value"><?php echo wp_kses_post(gdb_price($debit)); ?></div>
+                        <div class="stat-count"><?php echo esc_html(number_format_i18n($debit_count)); ?> <?php esc_html_e('تراکنش', 'golden-dashboard'); ?></div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -542,8 +550,8 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
                     </div>
                     <div class="stat-content">
                         <div class="stat-label"><?php echo esc_html($settings['count_title']); ?></div>
-                        <div class="stat-value"><?php echo number_format_i18n($total_count); ?></div>
-                        <div class="stat-count"><?php _e('تراکنش', 'golden-dashboard'); ?></div>
+                        <div class="stat-value"><?php echo esc_html(number_format_i18n($total_count)); ?></div>
+                        <div class="stat-count"><?php esc_html_e('تراکنش', 'golden-dashboard'); ?></div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -555,8 +563,8 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
                     </div>
                     <div class="stat-content">
                         <div class="stat-label"><?php echo esc_html($settings['balance_title']); ?></div>
-                        <div class="stat-value"><?php echo gdb_price($balance); ?></div>
-                        <div class="stat-count"><?php _e('موجودی فعلی', 'golden-dashboard'); ?></div>
+                        <div class="stat-value"><?php echo wp_kses_post(gdb_price($balance)); ?></div>
+                        <div class="stat-count"><?php esc_html_e('موجودی فعلی', 'golden-dashboard'); ?></div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -565,3 +573,4 @@ class GDB_Wallet_Stats_Widget extends GDB_Base_Widget
         <?php
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

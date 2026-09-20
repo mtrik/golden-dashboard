@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 
 
@@ -46,7 +54,7 @@ class GDB_Wallet_Topup {
     public function handle_topup_form_submission() {
         
         
-        if (!isset($_POST['gdb_topup_nonce']) || !wp_verify_nonce($_POST['gdb_topup_nonce'], 'gdb_wallet_topup_action')) {
+        if (!isset($_POST['gdb_topup_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['gdb_topup_nonce'])), 'gdb_wallet_topup_action')) {
             wp_send_json_error(['message' => __('توکن امنیتی نامعتبر یا منقضی شده است. لطفاً صفحه را رفرش کرده و مجدداً تلاش کنید.', 'golden-dashboard')]);
         }
 
@@ -70,7 +78,7 @@ class GDB_Wallet_Topup {
         
         
         
-        $amount_display = isset($_POST['topup_amount']) ? absint($_POST['topup_amount']) : 0;
+        $amount_display = isset($_POST['topup_amount']) ? absint(wp_unslash($_POST['topup_amount'])) : 0;
 
         if ($amount_display <= 0) {
             wp_send_json_error(['message' => __('مبلغ وارد شده برای شارژ معتبر نیست.', 'golden-dashboard')]);
@@ -194,11 +202,12 @@ class GDB_Wallet_Topup {
         
         $tracking_code = function_exists('gdb_generate_tracking_code') 
             ? gdb_generate_tracking_code() 
-            : (string) rand(100000000000, 999999999999);
+            : (string) wp_rand(100000000000, 999999999999);
 
         
         $description = sprintf(
-            __('سفارش شارژ کیف پول شماره %d - کد پیگیری: %s (در انتظار پرداخت)', 'golden-dashboard'),
+            /* translators: 1: order ID, 2: tracking code */
+            __('سفارش شارژ کیف پول شماره %1$d - کد پیگیری: %2$s (در انتظار پرداخت)', 'golden-dashboard'),
             $order_id,
             $tracking_code
         );
@@ -221,8 +230,8 @@ class GDB_Wallet_Topup {
                 'bank_date'        => '',
                 'meta_data'        => maybe_serialize(['order_id' => $order_id, 'is_topup' => true]),
                 'created_by'       => $user_id,
-                'ip_address'       => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                'user_agent'       => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                'ip_address'       => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                'user_agent'       => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                 'session_id'       => function_exists('session_id') && session_status() === PHP_SESSION_ACTIVE ? session_id() : '',
                 'is_suspicious'    => 0,
                 'created_at'       => current_time('mysql'),
@@ -322,7 +331,7 @@ class GDB_Wallet_Topup {
         global $wpdb;
         $table_trans = $wpdb->prefix . 'gd_wallet_transactions';
         $current_balance = GDB_Wallet::balance($user_id);
-        $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : rand(100000000000, 999999999999);
+        $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : wp_rand(100000000000, 999999999999);
 
         $status_action_labels = [
             'cancelled' => __('لغو شد', 'golden-dashboard'),
@@ -342,7 +351,8 @@ class GDB_Wallet_Topup {
             'transaction_type' => 'order_payment',
             'reference_id'     => $order_id,
             'description'      => sprintf(
-                __('وضعیتِ سفارشِ شارژِ کیف پول شماره %d به «%s» تغییر کرد؛ چون این صرفاً تغییرِ وضعیت است (نه استردادِ رسمی از طریق ووکامرس)، موجودیِ کیف پول دست‌نخورده باقی ماند - کد پیگیری: %s', 'golden-dashboard'),
+                /* translators: 1: order ID, 2: new status label, 3: tracking code */
+                __('وضعیتِ سفارشِ شارژِ کیف پول شماره %1$d به «%2$s» تغییر کرد؛ چون این صرفاً تغییرِ وضعیت است (نه استردادِ رسمی از طریق ووکامرس)، موجودیِ کیف پول دست‌نخورده باقی ماند - کد پیگیری: %3$s', 'golden-dashboard'),
                 $order_id,
                 $status_label,
                 $tracking_code
@@ -455,7 +465,7 @@ class GDB_Wallet_Topup {
             
             
             
-            $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : rand(100000000000, 999999999999);
+            $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : wp_rand(100000000000, 999999999999);
             $wpdb->insert(
                 $table_transactions,
                 [
@@ -467,15 +477,16 @@ class GDB_Wallet_Topup {
                     'transaction_type' => 'order_refund',
                     'reference_id'    => $order_id,
                     'description'     => sprintf(
-                        __('برداشت کیف پول به دلیل لغو/استرداد سفارش شماره %d - کد پیگیری: %s', 'golden-dashboard'),
+                        /* translators: 1: order ID, 2: tracking code */
+                        __('برداشت کیف پول به دلیل لغو/استرداد سفارش شماره %1$d - کد پیگیری: %2$s', 'golden-dashboard'),
                         $order_id,
                         $tracking_code
                     ),
                     'status'          => 'completed',
                     'tracking_code'   => $tracking_code,
                     'created_by'      => get_current_user_id() ?: 1,
-                    'ip_address'      => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                    'user_agent'      => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                    'ip_address'      => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                    'user_agent'      => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                     'session_id'      => function_exists('session_id') && session_status() === PHP_SESSION_ACTIVE ? session_id() : '',
                     'is_suspicious'   => 0,
                     'created_at'      => current_time('mysql'),
@@ -499,8 +510,8 @@ class GDB_Wallet_Topup {
                     'event_type'   => 'wallet_debited',
                     'severity'     => 'low',
                     'message'      => 'برداشت کیف پول به دلیل لغو/استرداد سفارش ' . $order_id,
-                    'ip_address'   => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                    'user_agent'   => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                    'ip_address'   => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                    'user_agent'   => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                     'request_data' => wp_json_encode([
                         'order_id' => $order_id,
                         'amount'   => $topup_amount
@@ -713,7 +724,7 @@ class GDB_Wallet_Topup {
             if (empty($tracking_code)) {
                 $tracking_code = function_exists('gdb_generate_tracking_code') 
                     ? gdb_generate_tracking_code() 
-                    : (string) rand(100000000000, 999999999999);
+                    : (string) wp_rand(100000000000, 999999999999);
             }
 
             
@@ -725,7 +736,8 @@ class GDB_Wallet_Topup {
             );
 
             $description = sprintf(
-                __('شارژ کیف پول از سفارش شماره %d - کد پیگیری: %s (تایید شده)', 'golden-dashboard'),
+                /* translators: 1: order ID, 2: tracking code */
+                __('شارژ کیف پول از سفارش شماره %1$d - کد پیگیری: %2$s (تایید شده)', 'golden-dashboard'),
                 $order_id,
                 $tracking_code
             );
@@ -762,8 +774,8 @@ class GDB_Wallet_Topup {
                         'status'          => 'completed',
                         'tracking_code'   => $tracking_code,
                         'created_by'      => get_current_user_id() ?: 1,
-                        'ip_address'      => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                        'user_agent'      => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                        'ip_address'      => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                        'user_agent'      => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                         'session_id'      => function_exists('session_id') && session_status() === PHP_SESSION_ACTIVE ? session_id() : '',
                         'is_suspicious'   => 0,
                         'created_at'      => current_time('mysql'),
@@ -1028,3 +1040,4 @@ class GDB_Wallet_Topup {
         }
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

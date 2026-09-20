@@ -1,17 +1,16 @@
 <?php
 /**
- * Plugin Name: گلدن داشبورد
+ * Plugin Name: Golden Dashboard
  * Plugin URI: https://github.com/mtrik/golden-dashboard
- * Description:  گلدن داشبورد مجموعه‌ای از ویجت‌های المنتور برای ایجاد و مدیریت داشبورد کیف پول کاربران در وردپرس است. در صورت استفاده از افزونه‌های دریافت خودکار نرخ ارز، طلا یا رمزارز، می‌توانید کیف پول‌های متناسب با هر دارایی ایجاد کرده و مدیریت تراکنش‌ها و تنظیمات آن‌ها را از پنل مدیریت انجام دهید.
+ * Description: Golden Dashboard
  * Version: 1.0.0
  * Requires at least: 6.5
  * Requires PHP: 7.4
- * Author: MTRIK
- * Author URI: https://github.com/mtrik/
+ * Author: Mt Omidi & Ali Badri
+ * Author URI: https://www.mtomidi.com
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: golden-dashboard
- * Domain Path: /languages
  */
 
 defined('ABSPATH') || exit;

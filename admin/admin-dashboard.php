@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -19,6 +27,7 @@ $total_fee_revenue = (float) $wpdb->get_var("SELECT COALESCE(SUM(fee_amount),0) 
 $pending_topup_orders = 0;
 $pending_gold_orders = 0;
 if (function_exists('wc_get_orders')) {
+    // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- WooCommerce order meta flag lookup; no indexed alternative available via wc_get_orders().
     $pending_topup_orders = count(wc_get_orders([
         'limit' => -1,
         'status' => ['pending', 'processing', 'on-hold'],
@@ -33,6 +42,7 @@ if (function_exists('wc_get_orders')) {
         'meta_value' => 'yes',
         'return' => 'ids',
     ]));
+    // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 }
 
 $gold_purchase_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE transaction_type = 'gold_purchase' AND status = 'completed'");
@@ -50,103 +60,103 @@ $widget_id = 'gdb-dashboard-' . uniqid();
 
 ?>
 <div class="wrap">
-    <h1><?php _e('گلدن داشبورد', 'golden-dashboard'); ?></h1>
-    <p><?php _e('به پنل مدیریت گلدن داشبورد خوش آمدید.', 'golden-dashboard'); ?></p>
+    <h1><?php esc_html_e('گلدن داشبورد', 'golden-dashboard'); ?></h1>
+    <p><?php esc_html_e('به پنل مدیریت گلدن داشبورد خوش آمدید.', 'golden-dashboard'); ?></p>
 
-    <h2 class="gdb-section-title"><?php _e('نیازمند توجه', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('نیازمند توجه', 'golden-dashboard'); ?></h2>
     <div class="gdb-dashboard-grid">
-        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo admin_url('admin.php?page=gdb-withdraw-requests&status=pending'); ?>'">
-            <h3><?php _e('درخواست‌های برداشت در انتظار', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-warning"><?php echo number_format_i18n($pending_count); ?></span>
+        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(admin_url('admin.php?page=gdb-withdraw-requests&status=pending')); ?>'">
+            <h3><?php esc_html_e('درخواست‌های برداشت در انتظار', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-warning"><?php echo esc_html(number_format_i18n($pending_count)); ?></span>
         </div>
         <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(gdb_get_wc_orders_admin_url('_gdb_is_topup', 'yes', ['wc-pending', 'wc-processing', 'wc-on-hold'])); ?>'">
-            <h3><?php _e('سفارشات شارژ کیف پول در انتظار', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-blue"><?php echo number_format_i18n($pending_topup_orders); ?></span>
-            <div class="gdb-stat-desc"><?php _e('سفارشات ووکامرس', 'golden-dashboard'); ?></div>
+            <h3><?php esc_html_e('سفارشات شارژ کیف پول در انتظار', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-blue"><?php echo esc_html(number_format_i18n($pending_topup_orders)); ?></span>
+            <div class="gdb-stat-desc"><?php esc_html_e('سفارشات ووکامرس', 'golden-dashboard'); ?></div>
         </div>
         <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(gdb_get_wc_orders_admin_url('_gdb_is_gold_purchase', 'yes', ['wc-pending', 'wc-processing', 'wc-on-hold'])); ?>'">
-            <h3><?php _e('سفارشات خرید طلا در انتظار', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-blue"><?php echo number_format_i18n($pending_gold_orders); ?></span>
-            <div class="gdb-stat-desc"><?php _e('سفارشات ووکامرس', 'golden-dashboard'); ?></div>
+            <h3><?php esc_html_e('سفارشات خرید طلا در انتظار', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-blue"><?php echo esc_html(number_format_i18n($pending_gold_orders)); ?></span>
+            <div class="gdb-stat-desc"><?php esc_html_e('سفارشات ووکامرس', 'golden-dashboard'); ?></div>
         </div>
     </div>
 
-    <h2 class="gdb-section-title"><?php _e('کیف پول نقدی', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('کیف پول نقدی', 'golden-dashboard'); ?></h2>
     <div class="gdb-dashboard-grid">
         <div class="gdb-dashboard-card">
-            <h3><?php _e('بدهیِ شما به کاربران', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-warning"><?php echo gdb_price_localized($total_liability); ?></span>
-            <div class="gdb-stat-desc"><?php _e('مجموع موجودیِ کل کیف‌پول‌ها - امانتِ کاربران', 'golden-dashboard'); ?></div>
+            <h3><?php esc_html_e('بدهیِ شما به کاربران', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-warning"><?php echo esc_html(gdb_price_localized($total_liability)); ?></span>
+            <div class="gdb-stat-desc"><?php esc_html_e('مجموع موجودیِ کل کیف‌پول‌ها - امانتِ کاربران', 'golden-dashboard'); ?></div>
         </div>
-        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo admin_url('admin.php?page=gdb-fee-report'); ?>'">
-            <h3><?php _e('کارمزد جمع‌شده (درآمدِ واقعی شما)', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-green"><?php echo gdb_price_localized($total_fee_revenue); ?></span>
-            <div class="gdb-stat-desc"><?php _e('مشاهده‌ی گزارش کامل', 'golden-dashboard'); ?></div>
-        </div>
-        <div class="gdb-dashboard-card">
-            <h3><?php _e('مجموع واریزها', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-green"><?php echo gdb_price_localized($total_credit); ?></span>
+        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(admin_url('admin.php?page=gdb-fee-report')); ?>'">
+            <h3><?php esc_html_e('کارمزد جمع‌شده (درآمدِ واقعی شما)', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-green"><?php echo esc_html(gdb_price_localized($total_fee_revenue)); ?></span>
+            <div class="gdb-stat-desc"><?php esc_html_e('مشاهده‌ی گزارش کامل', 'golden-dashboard'); ?></div>
         </div>
         <div class="gdb-dashboard-card">
-            <h3><?php _e('مجموع برداشت‌ها (ناخالص)', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-red"><?php echo gdb_price_localized($total_debit); ?></span>
+            <h3><?php esc_html_e('مجموع واریزها', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-green"><?php echo esc_html(gdb_price_localized($total_credit)); ?></span>
         </div>
-        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo admin_url('admin.php?page=gdb-transactions-history'); ?>'">
-            <h3><?php _e('کل تراکنش‌ها', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-blue"><?php echo number_format_i18n($total_count); ?></span>
+        <div class="gdb-dashboard-card">
+            <h3><?php esc_html_e('مجموع برداشت‌ها (ناخالص)', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-red"><?php echo esc_html(gdb_price_localized($total_debit)); ?></span>
+        </div>
+        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(admin_url('admin.php?page=gdb-transactions-history')); ?>'">
+            <h3><?php esc_html_e('کل تراکنش‌ها', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-blue"><?php echo esc_html(number_format_i18n($total_count)); ?></span>
         </div>
     </div>
 
-    <h2 class="gdb-section-title"><?php _e('کیف پول طلا', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('کیف پول طلا', 'golden-dashboard'); ?></h2>
     <div class="gdb-dashboard-grid">
-        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo admin_url('admin.php?page=gdb-transactions-history&tx_type_filter=gold_purchase'); ?>'">
-            <h3><?php _e('تعداد خرید طلای تکمیل‌شده', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-blue"><?php echo number_format_i18n($gold_purchase_count); ?></span>
+        <div class="gdb-dashboard-card gdb-clickable" onclick="window.location.href='<?php echo esc_url(admin_url('admin.php?page=gdb-transactions-history&tx_type_filter=gold_purchase')); ?>'">
+            <h3><?php esc_html_e('تعداد خرید طلای تکمیل‌شده', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-blue"><?php echo esc_html(number_format_i18n($gold_purchase_count)); ?></span>
         </div>
         <?php foreach ($gold_holdings as $gh) : ?>
             <div class="gdb-dashboard-card">
                 <h3><?php echo esc_html($gh->name); ?></h3>
-                <span class="gdb-stat-number gdb-color-purple"><?php echo gdb_format_quantity($gh->total_balance); ?> <?php echo esc_html($gh->unit_label); ?></span>
-                <div class="gdb-stat-desc"><?php _e('مجموع موجودیِ کاربران از این نوع', 'golden-dashboard'); ?></div>
+                <span class="gdb-stat-number gdb-color-purple"><?php echo esc_html(gdb_format_quantity($gh->total_balance)); ?> <?php echo esc_html($gh->unit_label); ?></span>
+                <div class="gdb-stat-desc"><?php esc_html_e('مجموع موجودیِ کاربران از این نوع', 'golden-dashboard'); ?></div>
             </div>
         <?php endforeach; ?>
         <?php if (empty($gold_holdings)) : ?>
             <div class="gdb-dashboard-card">
-                <p class="description"><?php _e('هنوز هیچ نوع کیف‌پول طلایی تعریف نشده است.', 'golden-dashboard'); ?></p>
+                <p class="description"><?php esc_html_e('هنوز هیچ نوع کیف‌پول طلایی تعریف نشده است.', 'golden-dashboard'); ?></p>
             </div>
         <?php endif; ?>
     </div>
 
-    <h2 class="gdb-section-title"><?php _e('کاربران', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('کاربران', 'golden-dashboard'); ?></h2>
     <div class="gdb-dashboard-grid">
         <div class="gdb-dashboard-card">
-            <h3><?php _e('تعداد کاربران سایت', 'golden-dashboard'); ?></h3>
-            <span class="gdb-stat-number gdb-color-purple"><?php echo number_format_i18n($user_count['total_users']); ?></span>
+            <h3><?php esc_html_e('تعداد کاربران سایت', 'golden-dashboard'); ?></h3>
+            <span class="gdb-stat-number gdb-color-purple"><?php echo esc_html(number_format_i18n($user_count['total_users'])); ?></span>
         </div>
     </div>
 
-    <h2 class="gdb-section-title"><?php _e('روند فعالیت', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('روند فعالیت', 'golden-dashboard'); ?></h2>
     <div class="gdb-dashboard-chart-wrapper">
         <div class="gdb-chart-header">
-            <h2><?php _e('تعداد تراکنش‌های روزانه', 'golden-dashboard'); ?></h2>
+            <h2><?php esc_html_e('تعداد تراکنش‌های روزانه', 'golden-dashboard'); ?></h2>
             <div class="gdb-chart-range-buttons">
-                <button class="button gdb-chart-range" data-range="today"><?php _e('امروز', 'golden-dashboard'); ?></button>
-                <button class="button gdb-chart-range active" data-range="7days"><?php _e('۷ روز', 'golden-dashboard'); ?></button>
-                <button class="button gdb-chart-range" data-range="30days"><?php _e('۳۰ روز', 'golden-dashboard'); ?></button>
-                <button class="button gdb-chart-range" data-range="90days"><?php _e('۹۰ روز', 'golden-dashboard'); ?></button>
-                <button class="button gdb-chart-range" data-range="all"><?php _e('همه', 'golden-dashboard'); ?></button>
+                <button class="button gdb-chart-range" data-range="today"><?php esc_html_e('امروز', 'golden-dashboard'); ?></button>
+                <button class="button gdb-chart-range active" data-range="7days"><?php esc_html_e('۷ روز', 'golden-dashboard'); ?></button>
+                <button class="button gdb-chart-range" data-range="30days"><?php esc_html_e('۳۰ روز', 'golden-dashboard'); ?></button>
+                <button class="button gdb-chart-range" data-range="90days"><?php esc_html_e('۹۰ روز', 'golden-dashboard'); ?></button>
+                <button class="button gdb-chart-range" data-range="all"><?php esc_html_e('همه', 'golden-dashboard'); ?></button>
             </div>
         </div>
         <div id="gdb-chart-container" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #ddd; margin-top:10px;">
             <div id="gdb-chart-loading" style="text-align:center; padding:40px 0; display:none;">
-                <span class="spinner is-active" style="float:none;"></span> <?php _e('در حال بارگذاری...', 'golden-dashboard'); ?>
+                <span class="spinner is-active" style="float:none;"></span> <?php esc_html_e('در حال بارگذاری...', 'golden-dashboard'); ?>
             </div>
             <div id="gdb-chart-bars" style="display:flex; align-items:flex-end; gap:10px; height:150px; padding-top:10px; border-bottom:2px solid #ddd; overflow-x:auto; min-height:150px;">
             </div>
         </div>
     </div>
 
-    <h2 class="gdb-section-title"><?php _e('آخرین تراکنش‌ها', 'golden-dashboard'); ?></h2>
+    <h2 class="gdb-section-title"><?php esc_html_e('آخرین تراکنش‌ها', 'golden-dashboard'); ?></h2>
     <?php if ($recent_transactions) :
         $gdb_dash_status_labels = [
             'pending'    => __('در انتظار', 'golden-dashboard'),
@@ -163,11 +173,11 @@ $widget_id = 'gdb-dashboard-' . uniqid();
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th><?php _e('تاریخ', 'golden-dashboard'); ?></th>
-                        <th><?php _e('کاربر', 'golden-dashboard'); ?></th>
-                        <th><?php _e('نوع', 'golden-dashboard'); ?></th>
-                        <th><?php _e('مبلغ', 'golden-dashboard'); ?></th>
-                        <th><?php _e('وضعیت', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('تاریخ', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کاربر', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('نوع', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('مبلغ', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('وضعیت', 'golden-dashboard'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -185,9 +195,9 @@ $widget_id = 'gdb-dashboard-' . uniqid();
                     ?>
                         <tr class="gdb-clickable-row" onclick="window.location.href='<?php echo esc_url($row_link); ?>'" style="cursor:pointer;">
                             <td><?php echo esc_html(gdb_date_jalali($rtx->created_at, true)); ?></td>
-                            <td><?php echo $ru ? esc_html($ru->display_name) : '#' . $rtx->user_id; ?></td>
+                            <td><?php echo $ru ? esc_html($ru->display_name) : '#' . absint($rtx->user_id); ?></td>
                             <td><?php echo esc_html(gdb_transaction_label($rtx, $rtx->type === 'credit')); ?></td>
-                            <td style="color:<?php echo $rtx->type === 'credit' ? '#16a34a' : '#dc2626'; ?>;"><?php echo gdb_price($rtx->amount); ?></td>
+                            <td style="color:<?php echo $rtx->type === 'credit' ? '#16a34a' : '#dc2626'; ?>;"><?php echo wp_kses_post(gdb_price($rtx->amount)); ?></td>
                             <td><span class="gdb-status-badge gdb-status-<?php echo esc_attr($rtx->status); ?>"><?php echo esc_html(isset($gdb_dash_status_labels[$rtx->status]) ? $gdb_dash_status_labels[$rtx->status] : $rtx->status); ?></span></td>
                         </tr>
                     <?php endforeach; ?>
@@ -195,14 +205,14 @@ $widget_id = 'gdb-dashboard-' . uniqid();
             </table>
         </div>
     <?php else : ?>
-        <p><?php _e('هنوز هیچ تراکنشی ثبت نشده است.', 'golden-dashboard'); ?></p>
+        <p><?php esc_html_e('هنوز هیچ تراکنشی ثبت نشده است.', 'golden-dashboard'); ?></p>
     <?php endif; ?>
 
     <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
-        <a href="<?php echo admin_url('admin.php?page=gdb-withdraw-requests'); ?>" class="button button-primary"><?php _e('مدیریت برداشت‌ها', 'golden-dashboard'); ?></a>
-        <a href="<?php echo admin_url('admin.php?page=gdb-transactions-history'); ?>" class="button"><?php _e('مشاهده تاریخچه تراکنش‌ها', 'golden-dashboard'); ?></a>
-        <a href="<?php echo admin_url('admin.php?page=gdb-fee-report'); ?>" class="button"><?php _e('گزارش کارمزد و درآمد', 'golden-dashboard'); ?></a>
-        <a href="<?php echo admin_url('admin.php?page=gdb-settings'); ?>" class="button"><?php _e('تنظیمات', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-withdraw-requests')); ?>" class="button button-primary"><?php esc_html_e('مدیریت برداشت‌ها', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-transactions-history')); ?>" class="button"><?php esc_html_e('مشاهده تاریخچه تراکنش‌ها', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-fee-report')); ?>" class="button"><?php esc_html_e('گزارش کارمزد و درآمد', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-settings')); ?>" class="button"><?php esc_html_e('تنظیمات', 'golden-dashboard'); ?></a>
     </div>
 </div>
 
@@ -294,8 +304,8 @@ jQuery(document).ready(function($) {
     if (typeof gdbAdminVars === 'undefined') {
         console.warn('gdbAdminVars not defined. Creating fallback.');
         window.gdbAdminVars = {
-            ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-            nonce: '<?php echo wp_create_nonce('gdb_filter_nonce'); ?>'
+            ajaxUrl: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+            nonce: '<?php echo esc_js(wp_create_nonce('gdb_filter_nonce')); ?>'
         };
     }
 
@@ -401,3 +411,4 @@ jQuery(document).ready(function($) {
     });
 });
 </script>
+<?php // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange ?>

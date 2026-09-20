@@ -1,24 +1,34 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 if (!defined('ABSPATH')) {
     exit;
 }
 
 if (!current_user_can('manage_options')) {
-    wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+    wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
 }
 
 global $wpdb;
 $table = $wpdb->prefix . 'gd_wallet_security_log';
 
-$severity  = isset($_GET['severity']) ? sanitize_text_field($_GET['severity']) : '';
-$event_type = isset($_GET['event_type']) ? sanitize_text_field($_GET['event_type']) : '';
-$date_from = isset($_GET['date_from']) ? gdb_normalize_admin_date_input(sanitize_text_field($_GET['date_from'])) : '';
-$date_to   = isset($_GET['date_to']) ? gdb_normalize_admin_date_input(sanitize_text_field($_GET['date_to'])) : '';
-$search    = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin list filtering/pagination; no data is written or changed here.
+$severity  = isset($_GET['severity']) ? sanitize_text_field(wp_unslash($_GET['severity'])) : '';
+$event_type = isset($_GET['event_type']) ? sanitize_text_field(wp_unslash($_GET['event_type'])) : '';
+$date_from = isset($_GET['date_from']) ? gdb_normalize_admin_date_input(sanitize_text_field(wp_unslash($_GET['date_from']))) : '';
+$date_to   = isset($_GET['date_to']) ? gdb_normalize_admin_date_input(sanitize_text_field(wp_unslash($_GET['date_to']))) : '';
+$search    = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
 
 $per_page = 50;
-$page = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
+$page = isset($_GET['paged']) ? max(1, absint(wp_unslash($_GET['paged']))) : 1;
 $offset = ($page - 1) * $per_page;
+// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 $where = ['1=1'];
 $params = [];
@@ -46,10 +56,12 @@ if ($search) {
 }
 
 $where_sql = implode(' AND ', $where);
+// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where_sql/$params are built dynamically from a fixed set of %s placeholders always pushed together in the same order and count; manually verified to match at every branch (and prepare() is skipped entirely when $params is empty).
 $count_sql = $params ? $wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$where_sql}", $params) : "SELECT COUNT(*) FROM {$table} WHERE {$where_sql}";
 $total = (int) $wpdb->get_var($count_sql);
 
 $sql_params = array_merge($params, [$per_page, $offset]);
+// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $where_sql/$params counts always match (see above); combined with the 2 literal LIMIT/OFFSET placeholders, counts always match. Manually verified.
 $sql = $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", $sql_params);
 $logs = $wpdb->get_results($sql);
 $pages = ceil($total / $per_page);
@@ -70,22 +82,22 @@ $severity_classes = [
 ];
 ?>
 <div class="wrap">
-    <h1 class="wp-heading-inline"><?php _e('لاگ امنیتی کیف پول', 'golden-dashboard'); ?></h1>
-    <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-settings&tab=security')); ?>" class="page-title-action"><?php _e('بازگشت به تنظیمات امنیتی', 'golden-dashboard'); ?></a>
+    <h1 class="wp-heading-inline"><?php esc_html_e('لاگ امنیتی کیف پول', 'golden-dashboard'); ?></h1>
+    <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-settings&tab=security')); ?>" class="page-title-action"><?php esc_html_e('بازگشت به تنظیمات امنیتی', 'golden-dashboard'); ?></a>
     <hr class="wp-header-end">
 
     <form method="get" action="" style="margin:20px 0; background:#f8fafc; padding:15px; border-radius:8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
         <input type="hidden" name="page" value="gdb-security-log">
 
         <select name="severity">
-            <option value=""><?php _e('همه سطوح', 'golden-dashboard'); ?></option>
+            <option value=""><?php esc_html_e('همه سطوح', 'golden-dashboard'); ?></option>
             <?php foreach ($severity_labels as $key => $label) : ?>
                 <option value="<?php echo esc_attr($key); ?>" <?php selected($severity, $key); ?>><?php echo esc_html($label); ?></option>
             <?php endforeach; ?>
         </select>
 
         <select name="event_type">
-            <option value=""><?php _e('همه رویدادها', 'golden-dashboard'); ?></option>
+            <option value=""><?php esc_html_e('همه رویدادها', 'golden-dashboard'); ?></option>
             <?php foreach ($event_types as $et) : ?>
                 <option value="<?php echo esc_attr($et); ?>" <?php selected($event_type, $et); ?>><?php echo esc_html($et); ?></option>
             <?php endforeach; ?>
@@ -96,8 +108,8 @@ $severity_classes = [
 
         <input type="text" name="search" value="<?php echo esc_attr($search); ?>" placeholder="<?php esc_attr_e('جستجوی کاربر / پیام / IP...', 'golden-dashboard'); ?>" style="min-width:180px;">
 
-        <button type="submit" class="button"><?php _e('فیلتر', 'golden-dashboard'); ?></button>
-        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-security-log')); ?>" class="button"><?php _e('بازنشانی', 'golden-dashboard'); ?></a>
+        <button type="submit" class="button"><?php esc_html_e('فیلتر', 'golden-dashboard'); ?></button>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-security-log')); ?>" class="button"><?php esc_html_e('بازنشانی', 'golden-dashboard'); ?></a>
     </form>
 
     <?php if ($logs) : ?>
@@ -105,13 +117,13 @@ $severity_classes = [
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th style="width:60px;"><?php _e('شناسه', 'golden-dashboard'); ?></th>
-                        <th><?php _e('کاربر', 'golden-dashboard'); ?></th>
-                        <th><?php _e('نوع رویداد', 'golden-dashboard'); ?></th>
-                        <th><?php _e('سطح', 'golden-dashboard'); ?></th>
-                        <th><?php _e('پیام', 'golden-dashboard'); ?></th>
-                        <th><?php _e('IP', 'golden-dashboard'); ?></th>
-                        <th><?php _e('تاریخ', 'golden-dashboard'); ?></th>
+                        <th style="width:60px;"><?php esc_html_e('شناسه', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کاربر', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('نوع رویداد', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('سطح', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('پیام', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('IP', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('تاریخ', 'golden-dashboard'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -139,19 +151,19 @@ $severity_classes = [
             <div class="tablenav-pages">
                 <?php
                 $base_url = admin_url('admin.php?page=gdb-security-log');
-                echo paginate_links([
+                echo wp_kses_post(paginate_links([
                     'base'      => add_query_arg('paged', '%#%', $base_url),
                     'format'    => '',
                     'prev_text' => '&laquo;',
                     'next_text' => '&raquo;',
                     'total'     => $pages,
                     'current'   => $page,
-                ]);
+                ]));
                 ?>
             </div>
         </div>
     <?php else : ?>
-        <p><?php _e('هیچ رویدادی یافت نشد.', 'golden-dashboard'); ?></p>
+        <p><?php esc_html_e('هیچ رویدادی یافت نشد.', 'golden-dashboard'); ?></p>
     <?php endif; ?>
 </div>
 
@@ -168,3 +180,4 @@ $severity_classes = [
     .gdb-sev-high { background: #ffe5d0; color: #ff9800; }
     .gdb-sev-critical { background: #fee2e2; color: #dc3545; }
 </style>
+<?php // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange ?>

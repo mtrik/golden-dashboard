@@ -893,9 +893,9 @@ class GDB_Wallet_Withdraw_Widget extends GDB_Base_Widget {
     protected function render() {
         if (!is_user_logged_in()) {
             if (function_exists('gdb_login_required')) {
-                echo gdb_login_required();
+                echo wp_kses_post(gdb_login_required());
             } else {
-                echo '<p>' . __('برای برداشت از کیف پول ابتدا وارد سیستم شوید.', 'golden-dashboard') . '</p>';
+                echo '<p>' . esc_html__('برای برداشت از کیف پول ابتدا وارد سیستم شوید.', 'golden-dashboard') . '</p>';
             }
             return;
         }

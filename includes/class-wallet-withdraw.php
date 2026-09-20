@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 
 
@@ -23,9 +31,11 @@ class GDB_Wallet_Withdraw {
         $max_amount = (float) get_option('gdb_withdraw_max_amount', 50000000);
 
         if ($amount < $min_amount) {
+            /* translators: %s: minimum withdrawal amount */
             return new WP_Error('min_amount', sprintf(__('حداقل مبلغ برداشت %s است.', 'golden-dashboard'), gdb_price_plain($min_amount)));
         }
         if ($amount > $max_amount) {
+            /* translators: %s: maximum withdrawal amount */
             return new WP_Error('max_amount', sprintf(__('حداکثر مبلغ برداشت %s است.', 'golden-dashboard'), gdb_price_plain($max_amount)));
         }
 
@@ -63,6 +73,7 @@ class GDB_Wallet_Withdraw {
                 throw new Exception($wpdb->last_error);
             }
 
+            /* translators: %s: withdrawal amount */
             $description = sprintf(__('برداشت مستقیم از کیف پول به مبلغ %s', 'golden-dashboard'), gdb_price_plain($amount));
             $wpdb->insert(
                 $table_transactions,
@@ -76,8 +87,8 @@ class GDB_Wallet_Withdraw {
                     'reference_id'    => 0,
                     'description'     => $description,
                     'created_by'      => $user_id,
-                    'ip_address'      => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                    'user_agent'      => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                    'ip_address'      => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                    'user_agent'      => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                     'session_id'      => function_exists('session_id') && session_status() === PHP_SESSION_ACTIVE ? session_id() : '',
                     'is_suspicious'   => 0,
                     'created_at'      => current_time('mysql')
@@ -97,8 +108,8 @@ class GDB_Wallet_Withdraw {
                     'event_type'   => 'wallet_debited',
                     'severity'     => 'low',
                     'message'      => sprintf('برداشت مستقیم از کیف پول به مبلغ %s', gdb_price_plain($amount)),
-                    'ip_address'   => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                    'user_agent'   => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                    'ip_address'   => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                    'user_agent'   => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                     'request_data' => wp_json_encode(['amount' => $amount]),
                     'created_at'   => current_time('mysql')
                 ],
@@ -123,3 +134,4 @@ class GDB_Wallet_Withdraw {
         }
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

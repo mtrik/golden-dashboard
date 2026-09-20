@@ -94,7 +94,7 @@ class GDB_Shortcodes {
             <div class="gdb-transactions-list">
                 <?php
                 foreach ( $transactions as $tx ) {
-                    echo gdb_render_transaction_item( $tx, $item_settings );
+                    echo wp_kses_post( gdb_render_transaction_item( $tx, $item_settings ) );
                 }
                 ?>
             </div>

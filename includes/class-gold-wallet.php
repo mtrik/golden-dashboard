@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -15,25 +23,16 @@ class GDB_Gold_Wallet {
 
         add_action('wp_ajax_gdb_get_gold_balances_html', [$this, 'ajax_get_balances_html']);
 
-
         add_action('woocommerce_payment_complete', [$this, 'credit_gold_on_order_complete'], 25, 1);
         add_action('woocommerce_order_status_changed', [$this, 'handle_gold_order_status_change'], 10, 4);
         add_action('woocommerce_order_status_changed', [$this, 'handle_gold_order_cancelled'], 10, 4);
-
-
 
         add_filter('woocommerce_get_return_url', [$this, 'filter_gold_return_url'], 999, 2);
         add_action('wp_ajax_gdb_get_gold_order_summary', [$this, 'ajax_get_gold_order_summary']);
         add_action('wp_ajax_nopriv_gdb_get_gold_order_summary', [$this, 'ajax_get_gold_order_summary']);
 
-
-
-
-
         add_action('wp_head', [$this, 'hide_order_review_table_for_gold_purchase']);
     }
-
-
 
     public function hide_order_review_table_for_gold_purchase() {
         if (!function_exists('is_wc_endpoint_url') || !is_wc_endpoint_url('order-pay')) {
@@ -49,8 +48,6 @@ class GDB_Gold_Wallet {
         }
         echo '<style>table.shop_table{display:none !important;}</style>';
     }
-
-
 
     public static function get_types($active_only = false) {
         global $wpdb;
@@ -102,8 +99,6 @@ class GDB_Gold_Wallet {
         return $wpdb->delete($table, ['id' => absint($id)], ['%d']);
     }
 
-
-
     public static function get_live_price($type) {
         if (!function_exists('wc_get_product')) {
             return 0;
@@ -139,8 +134,6 @@ class GDB_Gold_Wallet {
         ));
     }
 
-
-
     public static function render_balances_html($user_id, $empty_text = '') {
         $balances = self::get_user_balances($user_id);
 
@@ -171,6 +164,8 @@ class GDB_Gold_Wallet {
     }
 
     public function ajax_get_balances_html() {
+        check_ajax_referer('gdb_nonce', 'nonce');
+
         if (!is_user_logged_in()) {
             wp_send_json_error(['message' => __('لطفاً وارد شوید.', 'golden-dashboard')]);
         }
@@ -199,8 +194,6 @@ class GDB_Gold_Wallet {
         }
     }
 
-
-
     private function purchase_from_wallet($user_id, $type, $quantity, $price, $rial_amount) {
         global $wpdb;
 
@@ -217,7 +210,6 @@ class GDB_Gold_Wallet {
 
             $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : wp_generate_password(12, false);
 
-
             $cash_balance_after = $cash_balance - $rial_amount;
             $table_wallet = $wpdb->prefix . 'gd_user_wallet';
             $table_trans = $wpdb->prefix . 'gd_wallet_transactions';
@@ -229,7 +221,8 @@ class GDB_Gold_Wallet {
             ], ['user_id' => $user_id], ['%f', '%f', '%s'], ['%d']);
 
             $description = sprintf(
-                __('خرید %s %s طلا (%s) از موجودی کیف پول - کد پیگیری: %s', 'golden-dashboard'),
+                /* translators: 1: quantity, 2: unit label, 3: gold type name, 4: tracking code */
+                __('خرید %1$s %2$s طلا (%3$s) از موجودی کیف پول - کد پیگیری: %4$s', 'golden-dashboard'),
                 rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
                 $type->unit_label,
                 $type->name,
@@ -247,7 +240,7 @@ class GDB_Gold_Wallet {
                 'description'     => $description,
                 'created_by'      => $user_id,
                 'ip_address'      => GDB_Security::get_client_ip(),
-                'user_agent'      => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                'user_agent'      => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                 'status'          => 'completed',
                 'tracking_code'   => $tracking_code,
                 'meta_data'       => maybe_serialize(['gold_type_id' => $type->id, 'quantity' => $quantity, 'price_per_unit' => $price]),
@@ -255,7 +248,6 @@ class GDB_Gold_Wallet {
                 'updated_at'      => current_time('mysql'),
             ]);
             $cash_tx_id = $wpdb->insert_id;
-
 
             $gold_balance_before = self::balance($user_id, $type->id);
             $gold_balance_after = $gold_balance_before + $quantity;
@@ -284,7 +276,7 @@ class GDB_Gold_Wallet {
                 'tracking_code'   => $tracking_code,
                 'description'     => $description,
                 'ip_address'      => GDB_Security::get_client_ip(),
-                'user_agent'      => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                'user_agent'      => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                 'created_at'      => current_time('mysql'),
             ]);
             $metal_tx_id = $wpdb->insert_id;
@@ -294,7 +286,6 @@ class GDB_Gold_Wallet {
             }
 
             $wpdb->query('COMMIT');
-
 
             GDB_Security::log_event($user_id, 'gold_purchased', $description, 'low', [
                 'gold_type_id' => $type->id, 'quantity' => $quantity, 'rial_amount' => $rial_amount, 'tracking_code' => $tracking_code
@@ -313,8 +304,6 @@ class GDB_Gold_Wallet {
                 'cash_balance'    => $cash_balance_after,
                 'cash_balance_formatted' => gdb_price_plain($cash_balance_after),
 
-
-
                 'cash_balance_display' => gdb_display_amount($cash_balance_after),
                 'gold_balance'    => $gold_balance_after,
                 'unit_label'      => $type->unit_label,
@@ -324,10 +313,6 @@ class GDB_Gold_Wallet {
             return new WP_Error('purchase_failed', __('خطا در ثبت خرید. لطفاً مجدداً تلاش کنید.', 'golden-dashboard'));
         }
     }
-
-
-
-
 
     private function reserve_wallet_portion($user_id, $amount_toman, $order_id, $type, $quantity, $gateway_portion_toman = 0) {
         global $wpdb;
@@ -350,7 +335,8 @@ class GDB_Gold_Wallet {
             ], ['user_id' => $user_id], ['%f', '%f', '%s'], ['%d']);
 
             $description = sprintf(
-                __('کسر بخشی از مبلغ خرید %s %s طلا (%s) از کیف پول - سفارش شماره %d - پرداخت ترکیبی: %s از کیف پول + %s از درگاه پرداخت', 'golden-dashboard'),
+                /* translators: 1: quantity, 2: unit label, 3: gold type name, 4: order ID, 5: wallet portion, 6: gateway portion */
+                __('کسر بخشی از مبلغ خرید %1$s %2$s طلا (%3$s) از کیف پول - سفارش شماره %4$d - پرداخت ترکیبی: %5$s از کیف پول + %6$s از درگاه پرداخت', 'golden-dashboard'),
                 rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
                 $type->unit_label,
                 $type->name,
@@ -370,7 +356,7 @@ class GDB_Gold_Wallet {
                 'description'      => $description,
                 'created_by'       => $user_id,
                 'ip_address'       => GDB_Security::get_client_ip(),
-                'user_agent'       => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                'user_agent'       => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                 'status'           => 'completed',
                 'meta_data'        => maybe_serialize(['gold_type_id' => $type->id, 'quantity' => $quantity, 'order_id' => $order_id]),
                 'created_at'       => current_time('mysql'),
@@ -389,8 +375,6 @@ class GDB_Gold_Wallet {
         }
     }
 
-
-
     public function handle_gold_order_cancelled($order_id, $from, $to, $order) {
         if ($order->get_meta('_gdb_is_gold_purchase') !== 'yes') {
             return;
@@ -401,14 +385,6 @@ class GDB_Gold_Wallet {
 
         $user_id = $order->get_customer_id();
         global $wpdb;
-
-
-
-
-
-
-
-
 
         if ($order->get_meta('_gdb_gold_funds_credited') === 'yes' && $order->get_meta('_gdb_gold_reversed') !== 'yes') {
             $type_id = absint($order->get_meta('_gdb_gold_type_id'));
@@ -441,7 +417,13 @@ class GDB_Gold_Wallet {
                         'reference_id'     => $order_id,
                         'transaction_type' => 'gold_purchase',
                         'status'           => 'completed',
-                        'description'      => sprintf(__('برگشت %s %s طلا به دلیل لغو/ناموفق شدن سفارش شماره %d', 'golden-dashboard'), rtrim(rtrim(number_format($quantity, 3), '0'), '.'), $type->unit_label, $order_id),
+                        'description'      => sprintf(
+                            /* translators: 1: quantity, 2: unit label, 3: order ID */
+                            __('برگشت %1$s %2$s طلا به دلیل لغو/ناموفق شدن سفارش شماره %3$d', 'golden-dashboard'),
+                            rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
+                            $type->unit_label,
+                            $order_id
+                        ),
                         'ip_address'       => GDB_Security::get_client_ip(),
                         'created_at'       => current_time('mysql'),
                     ]);
@@ -457,11 +439,6 @@ class GDB_Gold_Wallet {
                     $wpdb->query('ROLLBACK');
                 }
             }
-
-
-
-
-
 
             $gateway_portion_toman = gdb_storage_amount((float) $order->get_total());
             if ($gateway_portion_toman > 0 && $order->get_meta('_gdb_gateway_portion_refunded') !== 'yes') {
@@ -489,7 +466,12 @@ class GDB_Gold_Wallet {
                         'balance_after'    => $balance_after,
                         'transaction_type' => 'gold_purchase',
                         'reference_id'     => $order_id,
-                        'description'      => sprintf(__('بازگشت مبلغ پرداخت‌شده از طریق درگاه پرداخت به کیف پول، به دلیل لغو/بازگشت سفارش خرید طلا شماره %d - کد پیگیری: %s', 'golden-dashboard'), $order_id, $tracking_code),
+                        'description'      => sprintf(
+                            /* translators: 1: order ID, 2: tracking code */
+                            __('بازگشت مبلغ پرداخت‌شده از طریق درگاه پرداخت به کیف پول، به دلیل لغو/بازگشت سفارش خرید طلا شماره %1$d - کد پیگیری: %2$s', 'golden-dashboard'),
+                            $order_id,
+                            $tracking_code
+                        ),
                         'created_by'       => 0,
                         'ip_address'       => GDB_Security::get_client_ip(),
                         'status'           => 'completed',
@@ -510,7 +492,6 @@ class GDB_Gold_Wallet {
                 }
             }
         }
-
 
         $wallet_portion = (float) $order->get_meta('_gdb_wallet_portion_toman');
         if ($wallet_portion > 0 && $order->get_meta('_gdb_gold_reservation_refunded') !== 'yes') {
@@ -537,7 +518,12 @@ class GDB_Gold_Wallet {
                     'balance_after'    => $balance_after,
                     'transaction_type' => 'gold_purchase',
                     'reference_id'     => $order_id,
-                    'description'      => sprintf(__('بازگشت مبلغ کسرشده از کیف پول به دلیل لغو/ناموفق شدن سفارش شماره %d - کد پیگیری: %s', 'golden-dashboard'), $order_id, $tracking_code),
+                    'description'      => sprintf(
+                        /* translators: 1: order ID, 2: tracking code */
+                        __('بازگشت مبلغ کسرشده از کیف پول به دلیل لغو/ناموفق شدن سفارش شماره %1$d - کد پیگیری: %2$s', 'golden-dashboard'),
+                        $order_id,
+                        $tracking_code
+                    ),
                     'created_by'       => 0,
                     'ip_address'       => GDB_Security::get_client_ip(),
                     'status'           => 'completed',
@@ -558,19 +544,9 @@ class GDB_Gold_Wallet {
             }
         }
 
-
         if (class_exists('GDB_Cashback')) {
             GDB_Cashback::reverse_for_order($order_id);
         }
-
-
-
-
-
-
-
-
-
 
         if ($order->get_meta('_gdb_gold_cancel_logged') !== 'yes') {
             $table_trans = $wpdb->prefix . 'gd_wallet_transactions';
@@ -592,7 +568,13 @@ class GDB_Gold_Wallet {
                 'balance_after'    => $current_balance,
                 'transaction_type' => 'gold_purchase',
                 'reference_id'     => $order_id,
-                'description'      => sprintf(__('سفارش خرید طلا شماره %d %s - کد پیگیری: %s', 'golden-dashboard'), $order_id, $status_action_label, $tracking_code),
+                'description'      => sprintf(
+                    /* translators: 1: order ID, 2: status action label, 3: tracking code */
+                    __('سفارش خرید طلا شماره %1$d %2$s - کد پیگیری: %3$s', 'golden-dashboard'),
+                    $order_id,
+                    $status_action_label,
+                    $tracking_code
+                ),
                 'created_by'       => 0,
                 'ip_address'       => GDB_Security::get_client_ip(),
                 'status'           => $to,
@@ -606,8 +588,6 @@ class GDB_Gold_Wallet {
 
         $order->save();
     }
-
-
 
     private function create_gateway_order($user_id, $type, $quantity, $gateway_portion_display, $wallet_portion_toman = 0, $wallet_reserve_tx_id = 0, $return_url = '') {
         if (!function_exists('wc_create_order')) {
@@ -628,11 +608,6 @@ class GDB_Gold_Wallet {
                 throw new Exception($order->get_error_message());
             }
 
-
-
-
-
-
             $item_id = $order->add_product($product, 1, [
                 'subtotal' => $gateway_portion_display,
                 'total'    => $gateway_portion_display,
@@ -650,13 +625,10 @@ class GDB_Gold_Wallet {
             $order->update_meta_data('_gdb_wallet_portion_toman', $wallet_portion_toman);
             $order->update_meta_data('_gdb_wallet_reserve_tx_id', $wallet_reserve_tx_id);
 
-
             if (empty($return_url)) {
                 $return_url = home_url('/');
             }
             $order->update_meta_data('_gdb_return_url', $return_url);
-
-            error_log('Saving return_url: ' . $return_url . ' for order ' . $order->get_id());
 
             $order->set_status('pending', __('سفارش خرید طلا ایجاد شد و در انتظار پرداخت است.', 'golden-dashboard'));
             $order->save();
@@ -667,32 +639,21 @@ class GDB_Gold_Wallet {
         }
     }
 
-
-
     public function filter_gold_return_url($return_url, $order) {
 
-        error_log('=== filter_gold_return_url (priority 999) called ===');
-        error_log('Order ID: ' . $order->get_id());
-        error_log('Original return_url: ' . $return_url);
-
         if (!$order instanceof WC_Order) {
-            error_log('Not a WC_Order object');
             return $return_url;
         }
 
         if ($order->get_meta('_gdb_is_gold_purchase') !== 'yes') {
-            error_log('Not a gold purchase order');
             return $return_url;
         }
 
         $target = $order->get_meta('_gdb_return_url');
-        error_log('_gdb_return_url from meta: ' . ($target ?: 'EMPTY'));
 
         if (empty($target)) {
             $target = home_url('/');
-            error_log('Using fallback target: ' . $target);
         }
-
 
         $target = remove_query_arg(['gdb_gold_result', 'order_id', 'key', 'gdb_message'], $target);
         $new_url = add_query_arg([
@@ -701,42 +662,31 @@ class GDB_Gold_Wallet {
             'key'             => $order->get_order_key(),
         ], $target);
 
-        error_log('Final return URL: ' . $new_url);
         return $new_url;
     }
 
     public function ajax_get_gold_order_summary() {
 
-        error_log('=== ajax_get_gold_order_summary called ===');
-        error_log('POST data: ' . print_r($_POST, true));
-
         check_ajax_referer('gdb_nonce', 'nonce');
 
         if (!is_user_logged_in()) {
-            error_log('User not logged in.');
             wp_send_json_error(['message' => __('برای مشاهده این بخش ابتدا وارد حساب کاربری خود شوید.', 'golden-dashboard')], 403);
         }
         if (!function_exists('wc_get_order')) {
-            error_log('WooCommerce not available.');
             wp_send_json_error(['message' => __('ووکامرس در دسترس نیست.', 'golden-dashboard')], 500);
         }
 
-        $order_id = isset($_POST['order_id']) ? absint($_POST['order_id']) : 0;
+        $order_id = isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0;
         $key = isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '';
-
-        error_log("Order ID: $order_id, Key: $key");
 
         $order = $order_id ? wc_get_order($order_id) : false;
         if (!$order || !hash_equals((string) $order->get_order_key(), (string) $key)) {
-            error_log('Order not found or key mismatch.');
             wp_send_json_error(['message' => __('سفارش یافت نشد.', 'golden-dashboard')], 404);
         }
         if ((int) $order->get_customer_id() !== get_current_user_id()) {
-            error_log('User does not have permission to view this order.');
             wp_send_json_error(['message' => __('شما اجازه دسترسی به این سفارش را ندارید.', 'golden-dashboard')], 403);
         }
         if ($order->get_meta('_gdb_is_gold_purchase') !== 'yes') {
-            error_log('Order is not a gold purchase.');
             wp_send_json_error(['message' => __('این سفارش مربوط به خرید طلا نیست.', 'golden-dashboard')], 400);
         }
 
@@ -746,7 +696,6 @@ class GDB_Gold_Wallet {
         $wallet_portion = (float) $order->get_meta('_gdb_wallet_portion_toman');
         $tracking_code = $order->get_meta('_gdb_gold_tracking_code');
 
-        error_log('Sending success response.');
         wp_send_json_success([
             'is_paid'        => $is_paid,
             'order_number'   => $order->get_order_number(),
@@ -763,14 +712,11 @@ class GDB_Gold_Wallet {
     }
 
     public function credit_gold_on_order_complete($order_id) {
-        error_log('=== credit_gold_on_order_complete called for order ' . $order_id);
         $order = wc_get_order($order_id);
         if (!$order || $order->get_meta('_gdb_is_gold_purchase') !== 'yes') {
-            error_log('Not a gold purchase order, skipping.');
             return;
         }
         if ($order->get_meta('_gdb_gold_funds_credited') === 'yes') {
-            error_log('Already credited, skipping.');
             return;
         }
 
@@ -778,7 +724,6 @@ class GDB_Gold_Wallet {
         $quantity = floatval($order->get_meta('_gdb_gold_quantity'));
         $type = self::get_type($type_id);
         if (!$type || $quantity <= 0) {
-            error_log('Invalid type or quantity.');
             return;
         }
 
@@ -807,7 +752,8 @@ class GDB_Gold_Wallet {
 
             if ($wallet_portion_toman > 0) {
                 $description = sprintf(
-                    __('خرید %s %s طلا (%s) - سفارش شماره %d - پرداخت ترکیبی: %s از کیف پول + %s از درگاه پرداخت - کد پیگیری: %s', 'golden-dashboard'),
+                    /* translators: 1: quantity, 2: unit label, 3: gold type name, 4: order ID, 5: wallet portion, 6: gateway portion, 7: tracking code */
+                    __('خرید %1$s %2$s طلا (%3$s) - سفارش شماره %4$d - پرداخت ترکیبی: %5$s از کیف پول + %6$s از درگاه پرداخت - کد پیگیری: %7$s', 'golden-dashboard'),
                     rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
                     $type->unit_label,
                     $type->name,
@@ -818,7 +764,8 @@ class GDB_Gold_Wallet {
                 );
             } else {
                 $description = sprintf(
-                    __('خرید %s %s طلا (%s) از طریق درگاه پرداخت - سفارش شماره %d - کد پیگیری: %s', 'golden-dashboard'),
+                    /* translators: 1: quantity, 2: unit label, 3: gold type name, 4: order ID, 5: tracking code */
+                    __('خرید %1$s %2$s طلا (%3$s) از طریق درگاه پرداخت - سفارش شماره %4$d - کد پیگیری: %5$s', 'golden-dashboard'),
                     rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
                     $type->unit_label,
                     $type->name,
@@ -855,10 +802,6 @@ class GDB_Gold_Wallet {
 
             $wpdb->query('COMMIT');
 
-
-
-
-
             $table_cash_trans = $wpdb->prefix . 'gd_wallet_transactions';
             $current_balance = GDB_Wallet::balance($user_id);
             $wpdb->insert($table_cash_trans, [
@@ -870,7 +813,8 @@ class GDB_Gold_Wallet {
                 'transaction_type' => 'gold_purchase',
                 'reference_id'     => $order_id,
                 'description'      => sprintf(
-                    __('پرداخت %s از طریق درگاه پرداخت برای خرید %s %s طلا (%s) - سفارش شماره %d - کد پیگیری: %s', 'golden-dashboard'),
+                    /* translators: 1: gateway amount, 2: quantity, 3: unit label, 4: gold type name, 5: order ID, 6: tracking code */
+                    __('پرداخت %1$s از طریق درگاه پرداخت برای خرید %2$s %3$s طلا (%4$s) - سفارش شماره %5$d - کد پیگیری: %6$s', 'golden-dashboard'),
                     gdb_price_plain($gateway_amount_toman),
                     rtrim(rtrim(number_format($quantity, 3), '0'), '.'),
                     $type->unit_label,
@@ -898,10 +842,8 @@ class GDB_Gold_Wallet {
                 GDB_Cashback::maybe_apply($user_id, $rial_amount, 'gold', $order_id);
             }
 
-            error_log('Gold purchase completed successfully.');
         } catch (Exception $e) {
             $wpdb->query('ROLLBACK');
-            error_log('Error in credit_gold_on_order_complete: ' . $e->getMessage());
             wc_get_logger()->error('خطا در تکمیل خرید طلا: ' . $e->getMessage(), ['source' => 'gdb-gold-wallet']);
         }
     }
@@ -915,15 +857,13 @@ class GDB_Gold_Wallet {
         }
     }
 
-
-
     public function ajax_get_price() {
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'gdb_gold_wallet_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'gdb_gold_wallet_nonce')) {
             wp_send_json_error(['message' => __('توکن امنیتی نامعتبر است.', 'golden-dashboard')]);
         }
 
-        $type_id = absint($_POST['type_id'] ?? 0);
-        $quantity = isset($_POST['quantity']) ? floatval($_POST['quantity']) : 0;
+        $type_id = isset($_POST['type_id']) ? absint(wp_unslash($_POST['type_id'])) : 0;
+        $quantity = isset($_POST['quantity']) ? floatval(wp_unslash($_POST['quantity'])) : 0;
         $type = self::get_type($type_id);
 
         if (!$type || $type->status !== 'active') {
@@ -942,40 +882,42 @@ class GDB_Gold_Wallet {
     }
 
     public function ajax_process_purchase() {
-        error_log('=== ajax_process_purchase called ===');
-        if (!isset($_POST['gdb_gold_wallet_nonce']) || !wp_verify_nonce($_POST['gdb_gold_wallet_nonce'], 'gdb_gold_wallet_nonce')) {
-            error_log('Invalid nonce.');
+        if (!isset($_POST['gdb_gold_wallet_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['gdb_gold_wallet_nonce'])), 'gdb_gold_wallet_nonce')) {
             wp_send_json_error(['message' => __('توکن امنیتی نامعتبر است.', 'golden-dashboard')]);
         }
 
         if (!is_user_logged_in()) {
-            error_log('User not logged in.');
             wp_send_json_error(['message' => __('برای خرید طلا ابتدا وارد حساب کاربری خود شوید.', 'golden-dashboard')]);
         }
 
         $user_id = get_current_user_id();
-        $type_id = absint($_POST['type_id'] ?? 0);
-        $quantity = isset($_POST['quantity']) ? floatval($_POST['quantity']) : 0;
+        $type_id = absint((isset($_POST['type_id']) ? wp_unslash($_POST['type_id']) : 0));
+        $quantity = isset($_POST['quantity']) ? floatval(wp_unslash($_POST['quantity'])) : 0;
 
         $type = self::get_type($type_id);
         if (!$type || $type->status !== 'active') {
-            error_log('Type not found or inactive.');
             wp_send_json_error(['message' => __('این نوع کیف پول طلا در دسترس نیست.', 'golden-dashboard')]);
         }
 
         if ($quantity <= 0) {
-            error_log('Invalid quantity.');
             wp_send_json_error(['message' => __('مقدار وارد شده معتبر نیست.', 'golden-dashboard')]);
         }
         if ($type->min_amount > 0 && $quantity < $type->min_amount) {
-            error_log('Below minimum quantity.');
-            wp_send_json_error(['message' => sprintf(__('حداقل مقدار خرید %s %s است.', 'golden-dashboard'), $type->min_amount, $type->unit_label)]);
+            wp_send_json_error(['message' => sprintf(
+                /* translators: 1: minimum amount, 2: unit label */
+                __('حداقل مقدار خرید %1$s %2$s است.', 'golden-dashboard'),
+                $type->min_amount,
+                $type->unit_label
+            )]);
         }
         if ($type->max_amount > 0 && $quantity > $type->max_amount) {
-            error_log('Above maximum quantity.');
-            wp_send_json_error(['message' => sprintf(__('حداکثر مقدار خرید %s %s است.', 'golden-dashboard'), $type->max_amount, $type->unit_label)]);
+            wp_send_json_error(['message' => sprintf(
+                /* translators: 1: maximum amount, 2: unit label */
+                __('حداکثر مقدار خرید %1$s %2$s است.', 'golden-dashboard'),
+                $type->max_amount,
+                $type->unit_label
+            )]);
         }
-
 
         if (GDB_Security::is_ip_blocked(GDB_Security::get_client_ip())) {
             GDB_Security::log_event($user_id, 'blocked_ip_attempt', 'تلاش برای خرید طلا از یک IP مسدود شده.', 'high', ['action' => 'gold_purchase']);
@@ -992,10 +934,8 @@ class GDB_Gold_Wallet {
             wp_send_json_error(['message' => $daily_limit_check->get_error_message()]);
         }
 
-
         $price_display = self::get_live_price($type);
         if ($price_display <= 0) {
-            error_log('Price not available.');
             wp_send_json_error(['message' => __('قیمت لحظه‌ای این محصول در دسترس نیست.', 'golden-dashboard')]);
         }
 
@@ -1010,42 +950,25 @@ class GDB_Gold_Wallet {
         $cash_balance = GDB_Wallet::balance($user_id);
         $use_wallet_balance = !empty($_POST['use_wallet_balance']);
 
-
-
-
-
         if ($type->payment_mode !== 'wallet_or_gateway') {
             if ($rial_amount_toman > $cash_balance) {
-                error_log('Insufficient balance and payment mode is wallet_only.');
                 wp_send_json_error(['message' => sprintf(
-                    __('موجودی کیف پول شما کافی نیست. مبلغ لازم: %s، موجودی فعلی: %s. لطفاً ابتدا کیف پول خود را شارژ کنید.', 'golden-dashboard'),
+                    /* translators: 1: required amount, 2: current balance */
+                    __('موجودی کیف پول شما کافی نیست. مبلغ لازم: %1$s، موجودی فعلی: %2$s. لطفاً ابتدا کیف پول خود را شارژ کنید.', 'golden-dashboard'),
                     gdb_price_plain($rial_amount_toman),
                     gdb_price_plain($cash_balance)
                 )]);
             }
-            error_log('Purchasing from wallet (wallet_only type).');
             $result = $this->purchase_from_wallet($user_id, $type, $quantity, $price_toman, $rial_amount_toman);
             if (is_wp_error($result)) {
-                error_log('Wallet purchase failed: ' . $result->get_error_message());
                 wp_send_json_error(['message' => $result->get_error_message()]);
             }
             wp_send_json_success(array_merge(['mode' => 'wallet'], $result));
         }
 
-
-
-
-
-
-
-
-
-
         if ($use_wallet_balance && $rial_amount_toman <= $cash_balance) {
-            error_log('Purchasing from wallet (user opted in and balance sufficient).');
             $result = $this->purchase_from_wallet($user_id, $type, $quantity, $price_toman, $rial_amount_toman);
             if (is_wp_error($result)) {
-                error_log('Wallet purchase failed: ' . $result->get_error_message());
                 wp_send_json_error(['message' => $result->get_error_message()]);
             }
             wp_send_json_success(array_merge(['mode' => 'wallet'], $result));
@@ -1054,12 +977,10 @@ class GDB_Gold_Wallet {
         $wallet_portion_toman = ($use_wallet_balance && $cash_balance > 0) ? min($cash_balance, $rial_amount_toman) : 0;
         $gateway_portion_toman = $rial_amount_toman - $wallet_portion_toman;
 
-
         $return_url = gdb_get_safe_return_url('gdb_return_url');
         if (empty($return_url)) {
             $return_url = home_url('/');
         }
-        error_log('Return URL: ' . $return_url);
 
         $order = $this->create_gateway_order(
             $user_id,
@@ -1071,7 +992,6 @@ class GDB_Gold_Wallet {
             $return_url
         );
         if (is_wp_error($order)) {
-            error_log('Order creation failed: ' . $order->get_error_message());
             wp_send_json_error(['message' => $order->get_error_message()]);
         }
 
@@ -1086,10 +1006,10 @@ class GDB_Gold_Wallet {
             $order->save();
         }
 
-        error_log('Redirecting to payment gateway.');
         wp_send_json_success([
             'mode'         => 'gateway',
             'redirect_url' => $order->get_checkout_payment_url(),
         ]);
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

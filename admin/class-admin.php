@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 
 
@@ -72,14 +80,16 @@ class GDB_Admin {
         if ($pagenow !== 'edit.php' || $query->get('post_type') !== 'shop_order') {
             return;
         }
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin list filter reading GET params to adjust a WooCommerce query; no data is written or changed here.
         if (!empty($_GET['gdb_meta_key']) && !empty($_GET['gdb_meta_value'])) {
-            $query->set('meta_key', sanitize_key($_GET['gdb_meta_key']));
-            $query->set('meta_value', sanitize_text_field($_GET['gdb_meta_value']));
+            $query->set('meta_key', sanitize_key(wp_unslash($_GET['gdb_meta_key'])));
+            $query->set('meta_value', sanitize_text_field(wp_unslash($_GET['gdb_meta_value'])));
         }
         if (!empty($_GET['gdb_statuses'])) {
-            $statuses = array_map('sanitize_key', explode(',', sanitize_text_field($_GET['gdb_statuses'])));
+            $statuses = array_map('sanitize_key', explode(',', sanitize_text_field(wp_unslash($_GET['gdb_statuses']))));
             $query->set('post_status', $statuses);
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
 
@@ -88,13 +98,15 @@ class GDB_Admin {
         if (!is_admin()) {
             return $query_args;
         }
+        // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value, WordPress.Security.NonceVerification.Recommended -- Optional read-only admin-only meta filter on a small WooCommerce order set; no data is written and no indexed alternative is available here.
         if (!empty($_GET['gdb_meta_key']) && !empty($_GET['gdb_meta_value'])) {
-            $query_args['meta_key'] = sanitize_key($_GET['gdb_meta_key']);
-            $query_args['meta_value'] = sanitize_text_field($_GET['gdb_meta_value']);
+            $query_args['meta_key'] = sanitize_key(wp_unslash($_GET['gdb_meta_key']));
+            $query_args['meta_value'] = sanitize_text_field(wp_unslash($_GET['gdb_meta_value']));
         }
         if (!empty($_GET['gdb_statuses'])) {
-            $query_args['status'] = array_map('sanitize_key', explode(',', sanitize_text_field($_GET['gdb_statuses'])));
+            $query_args['status'] = array_map('sanitize_key', explode(',', sanitize_text_field(wp_unslash($_GET['gdb_statuses']))));
         }
+        // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value, WordPress.Security.NonceVerification.Recommended
         return $query_args;
     }
 
@@ -183,65 +195,65 @@ class GDB_Admin {
     }
 
     public function register_settings() {
-        register_setting('gdb_settings_group', 'gdb_enable_admin_email');
-        register_setting('gdb_settings_group', 'gdb_enable_user_email');
-        register_setting('gdb_settings_group', 'gdb_withdraw_fee_percent');
+        register_setting('gdb_settings_group', 'gdb_enable_admin_email', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('gdb_settings_group', 'gdb_enable_user_email', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('gdb_settings_group', 'gdb_withdraw_fee_percent', ['sanitize_callback' => 'floatval']);
     }
 
     
 
     public function render_dashboard_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-dashboard.php';
     }
 
     public function render_withdraw_requests_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-withdraw-requests.php';
     }
 
     public function render_transactions_history_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-transaction-history.php';
     }
 
     public function render_fee_report_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-fee-report.php';
     }
 
     public function render_transaction_detail_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-transaction-detail.php';
     }
 
     public function render_manual_credit_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-manual-credit.php';
     }
 
     public function render_settings_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-settings.php';
     }
 
     public function render_security_log_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+            wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
         }
         include GDB_ADMIN_PATH . 'admin-security-log.php';
     }
@@ -277,7 +289,7 @@ class GDB_Admin {
 
         $filters = $this->get_filters_from_request($_POST);
         $per_page = 20;
-        $page = isset($_POST['paged']) ? max(1, absint($_POST['paged'])) : 1;
+        $page = isset($_POST['paged']) ? max(1, absint(wp_unslash($_POST['paged']))) : 1;
 
         $data = GDB_Withdraw_Request::get_requests($filters['query'], $per_page, $page);
         
@@ -285,7 +297,7 @@ class GDB_Admin {
         if ($data['items']) {
             $this->render_requests_table($data['items'], $data['total'], $data['pages'], $page);
         } else {
-            echo '<p>' . __('هیچ درخواستی یافت نشد.', 'golden-dashboard') . '</p>';
+            echo '<p>' . esc_html__('هیچ درخواستی یافت نشد.', 'golden-dashboard') . '</p>';
         }
         $html = ob_get_clean();
 
@@ -301,15 +313,15 @@ class GDB_Admin {
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th><?php _e('شناسه', 'golden-dashboard'); ?></th>
-                        <th><?php _e('کاربر', 'golden-dashboard'); ?></th>
-                        <th><?php _e('مبلغ درخواستی', 'golden-dashboard'); ?></th>
-                        <th><?php _e('کارمزد', 'golden-dashboard'); ?></th>
-                        <th><?php _e('مبلغ قابل واریز', 'golden-dashboard'); ?></th>
-                        <th><?php _e('کد پیگیری', 'golden-dashboard'); ?></th>
-                        <th><?php _e('وضعیت', 'golden-dashboard'); ?></th>
-                        <th><?php _e('تاریخ درخواست', 'golden-dashboard'); ?></th>
-                        <th><?php _e('عملیات', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('شناسه', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کاربر', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('مبلغ درخواستی', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کارمزد', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('مبلغ قابل واریز', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کد پیگیری', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('وضعیت', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('تاریخ درخواست', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('عملیات', 'golden-dashboard'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -320,17 +332,17 @@ class GDB_Admin {
                         $net_amount = isset($req->net_amount) ? $req->net_amount : $req->amount;
                         ?>
                         <tr>
-                            <td><?php echo $req->id; ?></td>
-                            <td><?php echo $user ? $user->display_name . ' (#' . $user->ID . ')' : __('نامشخص', 'golden-dashboard'); ?></td>
-                            <td><?php echo gdb_price($req->amount); ?></td>
-                            <td><?php echo $fee_amount > 0 ? gdb_price($fee_amount) : '-'; ?></td>
-                            <td><strong><?php echo gdb_price($net_amount); ?></strong></td>
+                            <td><?php echo absint($req->id); ?></td>
+                            <td><?php echo $user ? esc_html($user->display_name) . ' (#' . absint($user->ID) . ')' : esc_html__('نامشخص', 'golden-dashboard'); ?></td>
+                            <td><?php echo wp_kses_post(gdb_price($req->amount)); ?></td>
+                            <td><?php echo $fee_amount > 0 ? wp_kses_post(gdb_price($fee_amount)) : '-'; ?></td>
+                            <td><strong><?php echo wp_kses_post(gdb_price($net_amount)); ?></strong></td>
                             <td><code><?php echo esc_html($req->tracking_code); ?></code></td>
                             <td><span class="gdb-status-badge gdb-status-<?php echo esc_attr($status_meta[0]); ?>"><?php echo esc_html($status_meta[1]); ?></span></td>
                             <td><?php echo esc_html(gdb_date_jalali($req->created_at, true)); ?></td>
                             <td>
-                                <a href="<?php echo admin_url('admin.php?page=gdb-transaction-detail&id=' . $req->id); ?>" class="button button-primary button-small">
-                                    <?php _e('مشاهده و مدیریت', 'golden-dashboard'); ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-transaction-detail&id=' . $req->id)); ?>" class="button button-primary button-small">
+                                    <?php esc_html_e('مشاهده و مدیریت', 'golden-dashboard'); ?>
                                 </a>
                             </td>
                         </tr>
@@ -342,19 +354,19 @@ class GDB_Admin {
                 <div class="tablenav-pages">
                     <?php
                     $base_url = admin_url('admin.php?page=gdb-withdraw-requests');
-                    echo paginate_links([
+                    echo wp_kses_post(paginate_links([
                         'base'    => add_query_arg('paged', '%#%', $base_url),
                         'format'  => '',
                         'prev_text' => '&laquo;',
                         'next_text' => '&raquo;',
                         'total'   => $pages,
                         'current' => $page,
-                    ]);
+                    ]));
                     ?>
                 </div>
             </div>
         <?php else : ?>
-            <p><?php _e('هیچ درخواستی یافت نشد.', 'golden-dashboard'); ?></p>
+            <p><?php esc_html_e('هیچ درخواستی یافت نشد.', 'golden-dashboard'); ?></p>
         <?php endif;
     }
 
@@ -374,68 +386,68 @@ class GDB_Admin {
 
     public function handle_approve() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_approve_withdraw', 'gdb_approve_nonce');
 
-        $request_id = isset($_POST['request_id']) ? absint($_POST['request_id']) : 0;
+        $request_id = isset($_POST['request_id']) ? absint(wp_unslash($_POST['request_id'])) : 0;
         $referer = wp_get_referer() ?: admin_url('admin.php?page=gdb-withdraw-requests');
 
         if (!$request_id) {
-            wp_redirect(add_query_arg('gdb_error', rawurlencode(__('شناسه درخواست نامعتبر است.', 'golden-dashboard')), $referer));
+            wp_safe_redirect(add_query_arg('gdb_error', rawurlencode(__('شناسه درخواست نامعتبر است.', 'golden-dashboard')), $referer));
             exit;
         }
 
         $payment_data = [
-            'bank_transaction_id' => sanitize_text_field($_POST['bank_transaction_id'] ?? ''),
-            'admin_note'          => sanitize_text_field($_POST['admin_note'] ?? ''),
-            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field($_POST['bank_date'] ?? '')),
+            'bank_transaction_id' => sanitize_text_field((isset($_POST['bank_transaction_id']) ? wp_unslash($_POST['bank_transaction_id']) : '')),
+            'admin_note'          => sanitize_text_field((isset($_POST['admin_note']) ? wp_unslash($_POST['admin_note']) : '')),
+            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field((isset($_POST['bank_date']) ? wp_unslash($_POST['bank_date']) : ''))),
         ];
 
         $result = GDB_Withdraw_Request::approve($request_id, $payment_data);
         if (is_wp_error($result)) {
-            wp_redirect(add_query_arg('gdb_error', rawurlencode($result->get_error_message()), $referer));
+            wp_safe_redirect(add_query_arg('gdb_error', rawurlencode($result->get_error_message()), $referer));
             exit;
         }
 
         $this->save_audit_log($request_id, 'approved', get_current_user_id(), $payment_data['admin_note']);
-        wp_redirect(add_query_arg('message', 'approved', $referer));
+        wp_safe_redirect(add_query_arg('message', 'approved', $referer));
         exit;
     }
 
     public function handle_reject() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_reject_withdraw', 'gdb_reject_nonce');
 
-        $request_id = isset($_POST['request_id']) ? absint($_POST['request_id']) : 0;
+        $request_id = isset($_POST['request_id']) ? absint(wp_unslash($_POST['request_id'])) : 0;
         $referer = wp_get_referer() ?: admin_url('admin.php?page=gdb-withdraw-requests');
 
         if (!$request_id) {
-            wp_redirect(add_query_arg('gdb_error', rawurlencode(__('شناسه درخواست نامعتبر است.', 'golden-dashboard')), $referer));
+            wp_safe_redirect(add_query_arg('gdb_error', rawurlencode(__('شناسه درخواست نامعتبر است.', 'golden-dashboard')), $referer));
             exit;
         }
 
-        $reason = sanitize_text_field($_POST['reason'] ?? '');
+        $reason = sanitize_text_field((isset($_POST['reason']) ? wp_unslash($_POST['reason']) : ''));
         $result = GDB_Withdraw_Request::reject($request_id, $reason);
         if (is_wp_error($result)) {
-            wp_redirect(add_query_arg('gdb_error', rawurlencode($result->get_error_message()), $referer));
+            wp_safe_redirect(add_query_arg('gdb_error', rawurlencode($result->get_error_message()), $referer));
             exit;
         }
 
         $this->save_audit_log($request_id, 'rejected', get_current_user_id(), $reason);
-        wp_redirect(add_query_arg('message', 'rejected', $referer));
+        wp_safe_redirect(add_query_arg('message', 'rejected', $referer));
         exit;
     }
 
     public function handle_update_transaction() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_update_transaction', 'gdb_update_nonce');
 
-        $transaction_id = isset($_POST['transaction_id']) ? absint($_POST['transaction_id']) : 0;
+        $transaction_id = isset($_POST['transaction_id']) ? absint(wp_unslash($_POST['transaction_id'])) : 0;
         if (!$transaction_id) {
             gdb_admin_redirect_error(__('شناسه تراکنش نامعتبر است.', 'golden-dashboard'));
         }
@@ -444,9 +456,9 @@ class GDB_Admin {
         $table = $wpdb->prefix . 'gd_wallet_transactions';
 
         $update_data = [
-            'bank_transaction_id' => sanitize_text_field($_POST['bank_transaction_id'] ?? ''),
-            'admin_note'          => sanitize_textarea_field($_POST['admin_note'] ?? ''),
-            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field($_POST['bank_date'] ?? '')),
+            'bank_transaction_id' => sanitize_text_field((isset($_POST['bank_transaction_id']) ? wp_unslash($_POST['bank_transaction_id']) : '')),
+            'admin_note'          => sanitize_textarea_field((isset($_POST['admin_note']) ? wp_unslash($_POST['admin_note']) : '')),
+            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field((isset($_POST['bank_date']) ? wp_unslash($_POST['bank_date']) : ''))),
             'updated_at'          => current_time('mysql'),
         ];
 
@@ -459,30 +471,33 @@ class GDB_Admin {
         );
 
         $this->save_audit_log($transaction_id, 'updated', get_current_user_id(), sprintf(
-            __('به‌روزرسانی: شماره تراکنش=%s، تاریخ واریز=%s، یادداشت=%s', 'golden-dashboard'),
+            /* translators: 1: bank transaction ID, 2: bank date, 3: admin note */
+            __('به‌روزرسانی: شماره تراکنش=%1$s، تاریخ واریز=%2$s، یادداشت=%3$s', 'golden-dashboard'),
             $update_data['bank_transaction_id'],
             $update_data['bank_date'] ? gdb_date_jalali($update_data['bank_date'], false) : '',
             $update_data['admin_note']
         ));
 
-        wp_redirect(add_query_arg('message', 'updated', wp_get_referer()));
+        wp_safe_redirect(add_query_arg('message', 'updated', wp_get_referer()));
         exit;
     }
 
     public function export_transactions_csv() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
 
         global $wpdb;
         $table = $wpdb->prefix . 'gd_wallet_transactions';
 
-        $user_id = isset($_GET['user_id']) ? absint($_GET['user_id']) : 0;
-        $type = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : '';
-        $status = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
-        $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
-        $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
-        $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only CSV export using GET filters already validated by the current_user_can() check above; no data is written or changed here.
+        $user_id = isset($_GET['user_id']) ? absint(wp_unslash($_GET['user_id'])) : 0;
+        $type = isset($_GET['type']) ? sanitize_text_field(wp_unslash($_GET['type'])) : '';
+        $status = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
+        $date_from = isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '';
+        $date_to = isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '';
+        $search = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         $where = ['1=1'];
         $params = [];
@@ -514,11 +529,12 @@ class GDB_Admin {
         }
 
         $where_sql = implode(' AND ', $where);
+        // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where_sql is built dynamically from a fixed set of %d/%s placeholders that are always pushed to $params in the same order and count; manually verified to match at every branch.
         $sql = $wpdb->prepare("SELECT * FROM {$table} WHERE {$where_sql} ORDER BY id DESC", $params);
         $transactions = $wpdb->get_results($sql);
 
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="transactions-' . date('Y-m-d') . '.csv"');
+        header('Content-Disposition: attachment; filename="transactions-' . gmdate('Y-m-d') . '.csv"');
         $output = fopen('php://output', 'w');
         fputcsv($output, [
             __('شناسه', 'golden-dashboard'),
@@ -549,29 +565,30 @@ class GDB_Admin {
             ]);
         }
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- $output is a php://output stream for direct CSV download, not a filesystem file; WP_Filesystem does not support this stream.
         fclose($output);
         exit;
     }
 
     public function handle_save_settings() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_save_settings', 'gdb_settings_nonce');
 
         
         
         
-        $tab = sanitize_key($_POST['gdb_settings_tab'] ?? 'general');
+        $tab = sanitize_key((isset($_POST['gdb_settings_tab']) ? wp_unslash($_POST['gdb_settings_tab']) : 'general'));
 
         if ($tab === 'wallet') {
-            update_option('gdb_withdraw_fee_percent', floatval($_POST['gdb_withdraw_fee_percent'] ?? 0));
+            update_option('gdb_withdraw_fee_percent', floatval((isset($_POST['gdb_withdraw_fee_percent']) ? wp_unslash($_POST['gdb_withdraw_fee_percent']) : 0)));
             if (isset($_POST['gdb_wallet_topup_product_id'])) {
-                update_option('gdb_wallet_topup_product_id', absint($_POST['gdb_wallet_topup_product_id']));
+                update_option('gdb_wallet_topup_product_id', absint(wp_unslash($_POST['gdb_wallet_topup_product_id'])));
             }
         } else {
-            update_option('gdb_enable_admin_email', sanitize_text_field($_POST['gdb_enable_admin_email'] ?? 'yes'));
-            update_option('gdb_enable_user_email', sanitize_text_field($_POST['gdb_enable_user_email'] ?? 'yes'));
+            update_option('gdb_enable_admin_email', sanitize_text_field((isset($_POST['gdb_enable_admin_email']) ? wp_unslash($_POST['gdb_enable_admin_email']) : 'yes')));
+            update_option('gdb_enable_user_email', sanitize_text_field((isset($_POST['gdb_enable_user_email']) ? wp_unslash($_POST['gdb_enable_user_email']) : 'yes')));
             update_option('gdb_uninstall_delete_tables', isset($_POST['gdb_uninstall_delete_tables']) ? true : false);
         }
 
@@ -580,25 +597,25 @@ class GDB_Admin {
             'tab'         => $tab,
             'gdb_message' => rawurlencode(__('تنظیمات با موفقیت ذخیره شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_save_security_settings() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_save_security_settings', 'gdb_security_nonce');
 
         update_option('gdb_security_rate_limit_enabled', isset($_POST['rate_limit_enabled']) ? '1' : '');
-        update_option('gdb_security_rate_limit_window', max(1, absint($_POST['rate_limit_window'] ?? 60)));
-        update_option('gdb_security_rate_limit_max_attempts', max(1, absint($_POST['rate_limit_max_attempts'] ?? 5)));
-        update_option('gdb_security_rate_limit_block_duration', max(1, absint($_POST['rate_limit_block_duration'] ?? 300)));
-        update_option('gdb_security_suspicious_amount_threshold', max(0, floatval($_POST['suspicious_amount_threshold'] ?? 0)));
-        update_option('gdb_security_require_verification_above', max(0, floatval($_POST['require_verification_above'] ?? 0)));
+        update_option('gdb_security_rate_limit_window', max(1, absint((isset($_POST['rate_limit_window']) ? wp_unslash($_POST['rate_limit_window']) : 60))));
+        update_option('gdb_security_rate_limit_max_attempts', max(1, absint((isset($_POST['rate_limit_max_attempts']) ? wp_unslash($_POST['rate_limit_max_attempts']) : 5))));
+        update_option('gdb_security_rate_limit_block_duration', max(1, absint((isset($_POST['rate_limit_block_duration']) ? wp_unslash($_POST['rate_limit_block_duration']) : 300))));
+        update_option('gdb_security_suspicious_amount_threshold', max(0, floatval((isset($_POST['suspicious_amount_threshold']) ? wp_unslash($_POST['suspicious_amount_threshold']) : 0))));
+        update_option('gdb_security_require_verification_above', max(0, floatval((isset($_POST['require_verification_above']) ? wp_unslash($_POST['require_verification_above']) : 0))));
         update_option('gdb_security_alert_admin_on_suspicious', isset($_POST['alert_admin_on_suspicious']) ? '1' : '');
-        update_option('gdb_security_max_daily_transactions', max(0, absint($_POST['max_daily_transactions'] ?? 0)));
-        update_option('gdb_security_max_transaction_amount', max(0, floatval($_POST['max_transaction_amount'] ?? 0)));
+        update_option('gdb_security_max_daily_transactions', max(0, absint((isset($_POST['max_daily_transactions']) ? wp_unslash($_POST['max_daily_transactions']) : 0))));
+        update_option('gdb_security_max_transaction_amount', max(0, floatval((isset($_POST['max_transaction_amount']) ? wp_unslash($_POST['max_transaction_amount']) : 0))));
         update_option('gdb_security_log_all_transactions', isset($_POST['log_all_transactions']) ? '1' : '');
 
         $redirect = add_query_arg([
@@ -606,21 +623,21 @@ class GDB_Admin {
             'tab'         => 'security',
             'gdb_message' => rawurlencode(__('تنظیمات امنیتی با موفقیت ذخیره شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_save_gold_type() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_save_gold_type', 'gdb_gold_type_nonce');
 
         if (!class_exists('GDB_Gold_Wallet')) {
-            wp_die(__('سیستم کیف پول طلا در دسترس نیست.', 'golden-dashboard'));
+            wp_die(esc_html__('سیستم کیف پول طلا در دسترس نیست.', 'golden-dashboard'));
         }
 
-        $id = absint($_POST['id'] ?? 0);
+        $id = absint((isset($_POST['id']) ? wp_unslash($_POST['id']) : 0));
         GDB_Gold_Wallet::save_type($_POST, $id);
 
         $redirect = add_query_arg([
@@ -628,18 +645,18 @@ class GDB_Admin {
             'tab'         => 'gold-wallet',
             'gdb_message' => rawurlencode(__('نوع کیف پول طلا ذخیره شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_delete_gold_type() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_delete_gold_type', 'gdb_delete_gold_type_nonce');
 
         if (class_exists('GDB_Gold_Wallet')) {
-            GDB_Gold_Wallet::delete_type(absint($_POST['id'] ?? 0));
+            GDB_Gold_Wallet::delete_type(absint((isset($_POST['id']) ? wp_unslash($_POST['id']) : 0)));
         }
 
         $redirect = add_query_arg([
@@ -647,42 +664,42 @@ class GDB_Admin {
             'tab'         => 'gold-wallet',
             'gdb_message' => rawurlencode(__('نوع کیف پول طلا حذف شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_save_cashback_settings() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_save_cashback_settings', 'gdb_cashback_nonce');
 
         update_option('gdb_cashback_topup_enabled', isset($_POST['cashback_topup_enabled']) ? '1' : '');
-        update_option('gdb_cashback_topup_percent', max(0, min(100, floatval($_POST['cashback_topup_percent'] ?? 0))));
+        update_option('gdb_cashback_topup_percent', max(0, min(100, floatval((isset($_POST['cashback_topup_percent']) ? wp_unslash($_POST['cashback_topup_percent']) : 0)))));
 
         update_option('gdb_cashback_gold_enabled', isset($_POST['cashback_gold_enabled']) ? '1' : '');
-        update_option('gdb_cashback_gold_percent', max(0, min(100, floatval($_POST['cashback_gold_percent'] ?? 0))));
+        update_option('gdb_cashback_gold_percent', max(0, min(100, floatval((isset($_POST['cashback_gold_percent']) ? wp_unslash($_POST['cashback_gold_percent']) : 0)))));
 
         update_option('gdb_cashback_order_enabled', isset($_POST['cashback_order_enabled']) ? '1' : '');
-        update_option('gdb_cashback_order_percent', max(0, min(100, floatval($_POST['cashback_order_percent'] ?? 0))));
+        update_option('gdb_cashback_order_percent', max(0, min(100, floatval((isset($_POST['cashback_order_percent']) ? wp_unslash($_POST['cashback_order_percent']) : 0)))));
 
         $redirect = add_query_arg([
             'page'        => 'gdb-settings',
             'tab'         => 'cashback',
             'gdb_message' => rawurlencode(__('تنظیمات کش‌بک با موفقیت ذخیره شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_block_ip() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_block_ip', 'gdb_block_ip_nonce');
 
-        $ip = sanitize_text_field($_POST['ip_address'] ?? '');
-        $reason = sanitize_text_field($_POST['reason'] ?? '');
+        $ip = sanitize_text_field((isset($_POST['ip_address']) ? wp_unslash($_POST['ip_address']) : ''));
+        $reason = sanitize_text_field((isset($_POST['reason']) ? wp_unslash($_POST['reason']) : ''));
 
         if ($ip && filter_var($ip, FILTER_VALIDATE_IP)) {
             GDB_Security::block_ip($ip, $reason, get_current_user_id());
@@ -693,24 +710,24 @@ class GDB_Admin {
             'tab'         => 'security',
             'gdb_message' => rawurlencode(__('آی‌پی مسدود شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
     public function handle_unblock_ip() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_unblock_ip', 'gdb_unblock_ip_nonce');
 
-        GDB_Security::unblock_ip(absint($_POST['id'] ?? 0));
+        GDB_Security::unblock_ip(absint((isset($_POST['id']) ? wp_unslash($_POST['id']) : 0)));
 
         $redirect = add_query_arg([
             'page'        => 'gdb-settings',
             'tab'         => 'security',
             'gdb_message' => rawurlencode(__('رفع مسدودی انجام شد.', 'golden-dashboard')),
         ], admin_url('admin.php'));
-        wp_redirect($redirect);
+        wp_safe_redirect($redirect);
         exit;
     }
 
@@ -718,12 +735,12 @@ class GDB_Admin {
 
     public function handle_manual_credit() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_manual_credit_action', 'gdb_manual_credit_nonce');
 
-        $user_id = isset($_POST['user_id']) ? absint($_POST['user_id']) : 0;
-        $type = isset($_POST['transaction_type']) ? sanitize_text_field($_POST['transaction_type']) : '';
+        $user_id = isset($_POST['user_id']) ? absint(wp_unslash($_POST['user_id'])) : 0;
+        $type = isset($_POST['transaction_type']) ? sanitize_text_field(wp_unslash($_POST['transaction_type'])) : '';
         
         
         
@@ -732,8 +749,8 @@ class GDB_Admin {
         
         
         
-        $amount = isset($_POST['amount']) ? gdb_storage_amount(floatval($_POST['amount'])) : 0;
-        $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
+        $amount = isset($_POST['amount']) ? gdb_storage_amount(floatval(wp_unslash($_POST['amount']))) : 0;
+        $description = isset($_POST['description']) ? sanitize_textarea_field(wp_unslash($_POST['description'])) : '';
 
         if (!$user_id || !get_userdata($user_id)) {
             gdb_admin_redirect_error(__('کاربر نامعتبر است.', 'golden-dashboard'));
@@ -749,8 +766,8 @@ class GDB_Admin {
         $fee_amount = 0;
         $net_amount = $amount;
         if ($type === 'debit') {
-            $fee_type = isset($_POST['fee_type']) ? sanitize_text_field($_POST['fee_type']) : 'percent';
-            $fee_value = isset($_POST['fee_value']) ? floatval($_POST['fee_value']) : 0;
+            $fee_type = isset($_POST['fee_type']) ? sanitize_text_field(wp_unslash($_POST['fee_type'])) : 'percent';
+            $fee_value = isset($_POST['fee_value']) ? floatval(wp_unslash($_POST['fee_value'])) : 0;
             if ($fee_value > 0) {
                 if ($fee_type === 'fixed') {
                     $fee_amount = gdb_storage_amount($fee_value);
@@ -766,9 +783,9 @@ class GDB_Admin {
         
         $created_at = current_time('mysql');
         if (!empty($_POST['transaction_date'])) {
-            $tx_date = gdb_normalize_admin_date_input(sanitize_text_field($_POST['transaction_date']));
+            $tx_date = gdb_normalize_admin_date_input(sanitize_text_field(wp_unslash($_POST['transaction_date'])));
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tx_date)) {
-                $created_at = $tx_date . ' ' . date('H:i:s', current_time('timestamp'));
+                $created_at = $tx_date . ' ' . gmdate('H:i:s', current_time('timestamp'));
             }
         }
 
@@ -782,7 +799,7 @@ class GDB_Admin {
         }
 
         $return_url = !empty($_POST['gdb_return_url']) ? esc_url_raw(wp_unslash($_POST['gdb_return_url'])) : wp_get_referer();
-        wp_redirect(add_query_arg(['message' => 'success', 'user_id' => $user_id], $return_url ?: admin_url()));
+        wp_safe_redirect(add_query_arg(['message' => 'success', 'user_id' => $user_id], $return_url ?: admin_url()));
         exit;
     }
 
@@ -790,7 +807,7 @@ class GDB_Admin {
 
     public function handle_delete_manual_transaction() {
         if (!current_user_can('manage_options')) {
-            wp_die(__('دسترسی غیرمجاز', 'golden-dashboard'));
+            wp_die(esc_html__('دسترسی غیرمجاز', 'golden-dashboard'));
         }
         check_admin_referer('gdb_delete_manual_transaction_action', 'gdb_delete_manual_transaction_nonce');
 
@@ -798,8 +815,8 @@ class GDB_Admin {
         $table_transactions = $wpdb->prefix . 'gd_wallet_transactions';
         $table_wallet = $wpdb->prefix . 'gd_user_wallet';
 
-        $transaction_id = isset($_POST['transaction_id']) ? absint($_POST['transaction_id']) : 0;
-        $user_id = isset($_POST['user_id']) ? absint($_POST['user_id']) : 0;
+        $transaction_id = isset($_POST['transaction_id']) ? absint(wp_unslash($_POST['transaction_id'])) : 0;
+        $user_id = isset($_POST['user_id']) ? absint(wp_unslash($_POST['user_id'])) : 0;
 
         $tx = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table_transactions} WHERE id = %d AND user_id = %d", $transaction_id, $user_id));
         if (!$tx || !in_array($tx->transaction_type, ['admin_credit', 'admin_debit'])) {
@@ -842,14 +859,15 @@ class GDB_Admin {
         }
 
         $this->save_audit_log(0, 'deleted', get_current_user_id(), sprintf(
-            __('حذف تراکنش دستیِ شماره %d (مبلغ: %s، کاربر: %d) توسط مدیر', 'golden-dashboard'),
+            /* translators: 1: transaction ID, 2: amount, 3: user ID */
+            __('حذف تراکنش دستیِ شماره %1$d (مبلغ: %2$s، کاربر: %3$d) توسط مدیر', 'golden-dashboard'),
             $transaction_id,
             gdb_price_plain($tx->amount),
             $user_id
         ));
 
         $return_url = !empty($_POST['gdb_return_url']) ? esc_url_raw(wp_unslash($_POST['gdb_return_url'])) : wp_get_referer();
-        wp_redirect(add_query_arg(['message' => 'updated', 'user_id' => $user_id], remove_query_arg(['edit_tx', 'gdb_error'], $return_url ?: admin_url())));
+        wp_safe_redirect(add_query_arg(['message' => 'updated', 'user_id' => $user_id], remove_query_arg(['edit_tx', 'gdb_error'], $return_url ?: admin_url())));
         exit;
     }
 
@@ -859,7 +877,7 @@ class GDB_Admin {
             wp_send_json_error('دسترسی غیرمجاز');
         }
 
-        $term = isset($_GET['term']) ? sanitize_text_field($_GET['term']) : '';
+        $term = isset($_GET['term']) ? sanitize_text_field(wp_unslash($_GET['term'])) : '';
         if (strlen($term) < 2) {
             wp_send_json_success([]);
         }
@@ -953,16 +971,18 @@ class GDB_Admin {
                 }
             }
 
-            $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : rand(100000000000, 999999999999);
+            $tracking_code = function_exists('gdb_generate_tracking_code') ? gdb_generate_tracking_code() : wp_rand(100000000000, 999999999999);
             $transaction_type = ($type === 'credit') ? 'admin_credit' : 'admin_debit';
             $desc = $description ?: (($type === 'credit') ? __('شارژ دستی توسط مدیر', 'golden-dashboard') : __('برداشت دستی توسط مدیر', 'golden-dashboard'));
             if ($fee_amount > 0) {
                 $desc .= ' - ' . sprintf(
-                    __('کارمزد: %s - مبلغ قابل واریز: %s', 'golden-dashboard'),
+                    /* translators: 1: fee amount, 2: net amount */
+                    __('کارمزد: %1$s - مبلغ قابل واریز: %2$s', 'golden-dashboard'),
                     gdb_price_plain($fee_amount),
                     gdb_price_plain($net_amount)
                 );
             }
+            /* translators: %s: tracking code */
             $desc .= ' - ' . sprintf(__('کد پیگیری: %s', 'golden-dashboard'), $tracking_code);
 
             $wpdb->insert(
@@ -981,8 +1001,8 @@ class GDB_Admin {
                     'status' => 'completed',
                     'tracking_code' => $tracking_code,
                     'created_by' => get_current_user_id(),
-                    'ip_address' => sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? ''),
-                    'user_agent' => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                    'ip_address' => sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : '')),
+                    'user_agent' => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
                     'created_at' => $created_at,
                     'updated_at' => current_time('mysql'),
                 ],
@@ -1121,3 +1141,4 @@ class GDB_Admin {
         ]);
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

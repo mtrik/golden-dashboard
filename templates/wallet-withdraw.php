@@ -23,15 +23,18 @@ if (!defined('ABSPATH')) {
     <?php if ($settings['show_balance'] === 'yes') : ?>
         <div class="gdb-withdraw-balance-wrap">
             <span class="gdb-withdraw-balance-label"><?php echo esc_html($settings['balance_label']); ?></span>
-            <span class="gdb-withdraw-balance-value"><?php echo GDB_Wallet::balance_html($user_id); ?></span>
+            <span class="gdb-withdraw-balance-value"><?php echo wp_kses_post(GDB_Wallet::balance_html($user_id)); ?></span>
         </div>
     <?php endif; ?>
 
     <?php if ($has_pending) : ?>
         <div class="gdb-withdraw-pending-notice">
-            <p><?php _e('شما درخواست‌های برداشت در حال بررسی دارید. پس از تأیید مدیر، مبلغ از کیف پول کسر خواهد شد.', 'golden-dashboard'); ?></p>
+            <p><?php esc_html_e('شما درخواست‌های برداشت در حال بررسی دارید. پس از تأیید مدیر، مبلغ از کیف پول کسر خواهد شد.', 'golden-dashboard'); ?></p>
             <?php foreach ($pending_requests as $req) : ?>
-                <p><small><?php echo sprintf(__('کد پیگیری: %s - مبلغ: %s', 'golden-dashboard'), esc_html($req->tracking_code), gdb_price($req->amount)); ?></small></p>
+                <p><small><?php
+                /* translators: 1: tracking code, 2: formatted amount */
+                echo wp_kses_post(sprintf(__('کد پیگیری: %1$s - مبلغ: %2$s', 'golden-dashboard'), esc_html($req->tracking_code), gdb_price($req->amount)));
+                ?></small></p>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
@@ -42,7 +45,7 @@ if (!defined('ABSPATH')) {
 
         <div class="gdb-input-group">
             <label for="gdb_withdraw_amount" class="gdb-input-label">
-                <?php _e('مبلغ برداشت:', 'golden-dashboard'); ?>
+                <?php esc_html_e('مبلغ برداشت:', 'golden-dashboard'); ?>
             </label>
             <input type="number"
                    name="amount"
@@ -58,11 +61,14 @@ if (!defined('ABSPATH')) {
         <?php if ($show_fee_info) : ?>
             <div class="gdb-withdraw-fee-info" style="display: none;">
                 <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
-                    <span><?php printf(__('کارمزد (%.2f%%):', 'golden-dashboard'), $fee_percent); ?></span>
+                    <span><?php
+                    /* translators: %.2f: withdrawal fee percentage */
+                    echo esc_html(sprintf(__('کارمزد (%.2f%%):', 'golden-dashboard'), $fee_percent));
+                    ?></span>
                     <span class="gdb-withdraw-fee-amount" style="font-weight: 600; color: #dc2626;">0</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 700;">
-                    <span><?php _e('مبلغ قابل واریز:', 'golden-dashboard'); ?></span>
+                    <span><?php esc_html_e('مبلغ قابل واریز:', 'golden-dashboard'); ?></span>
                     <span class="gdb-withdraw-net-amount" style="color: #16a34a;">0</span>
                 </div>
             </div>
@@ -70,7 +76,7 @@ if (!defined('ABSPATH')) {
 
         <div class="gdb-withdraw-submit-wrap">
             <button type="submit" class="gdb-withdraw-submit" <?php echo $has_pending ? 'disabled' : ''; ?>>
-                <?php echo $has_pending ? __('در انتظار بررسی', 'golden-dashboard') : esc_html($settings['button_text']); ?>
+                <?php echo $has_pending ? esc_html__('در انتظار بررسی', 'golden-dashboard') : esc_html($settings['button_text']); ?>
             </button>
         </div>
 

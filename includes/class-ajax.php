@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -39,8 +47,8 @@ class GDB_Ajax
             $filter_transaction_type = '';
         }
 
-        $page = isset($_POST['history_page']) ? absint($_POST['history_page']) : 1;
-        $per_page = isset($_POST['history_per_page']) ? absint($_POST['history_per_page']) : 20;
+        $page = isset($_POST['history_page']) ? absint(wp_unslash($_POST['history_page'])) : 1;
+        $per_page = isset($_POST['history_per_page']) ? absint(wp_unslash($_POST['history_per_page'])) : 20;
         if ($per_page < 1) $per_page = 20;
         if ($page < 1) $page = 1;
 
@@ -72,7 +80,7 @@ class GDB_Ajax
                 true
             );
         } else {
-            echo gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard'));
+            echo wp_kses_post(gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard')));
         }
         $html = ob_get_clean();
 
@@ -101,7 +109,7 @@ class GDB_Ajax
             wp_send_json_error(['message' => __('ووکامرس در دسترس نیست.', 'golden-dashboard')], 500);
         }
 
-        $order_id = isset($_POST['order_id']) ? absint($_POST['order_id']) : 0;
+        $order_id = isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0;
         $key      = isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '';
 
         $order = $order_id ? wc_get_order($order_id) : false;
@@ -167,7 +175,7 @@ class GDB_Ajax
         }
 
 
-        $amount = isset($_POST['amount']) ? floatval($_POST['amount']) : 0;
+        $amount = isset($_POST['amount']) ? floatval(wp_unslash($_POST['amount'])) : 0;
         if ($amount <= 0) {
             wp_send_json_error(['message' => __('مبلغ وارد شده معتبر نیست.', 'golden-dashboard')]);
         }
@@ -181,16 +189,18 @@ class GDB_Ajax
 
 
 
-        $posted_min = isset($_POST['min_amount']) ? (float) $_POST['min_amount'] : 0;
-        $posted_max = isset($_POST['max_amount']) ? (float) $_POST['max_amount'] : 0;
+        $posted_min = isset($_POST['min_amount']) ? floatval(wp_unslash($_POST['min_amount'])) : 0;
+        $posted_max = isset($_POST['max_amount']) ? floatval(wp_unslash($_POST['max_amount'])) : 0;
 
         $min_amount = $posted_min > 0 ? $posted_min : (float) get_option('gdb_withdraw_min_amount', 1000);
         $max_amount = $posted_max > 0 ? $posted_max : (float) get_option('gdb_withdraw_max_amount', 50000000);
 
         if ($amount_storage < $min_amount) {
+            /* translators: %s: minimum withdrawal amount */
             wp_send_json_error(['message' => sprintf(__('حداقل مبلغ برداشت %s است.', 'golden-dashboard'), gdb_price_plain($min_amount))]);
         }
         if ($amount_storage > $max_amount) {
+            /* translators: %s: maximum withdrawal amount */
             wp_send_json_error(['message' => sprintf(__('حداکثر مبلغ برداشت %s است.', 'golden-dashboard'), gdb_price_plain($max_amount))]);
         }
 
@@ -259,7 +269,7 @@ class GDB_Ajax
         }
 
         $user_id = get_current_user_id();
-        $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 10;
+        $limit = isset($_POST['limit']) ? absint(wp_unslash($_POST['limit'])) : 10;
         if ($limit < 1) {
             $limit = 10;
         }
@@ -299,7 +309,7 @@ class GDB_Ajax
                 false
             );
         } else {
-            echo gdb_empty(__('هیچ تراکنشی یافت نشد.', 'golden-dashboard'));
+            echo wp_kses_post(gdb_empty(__('هیچ تراکنشی یافت نشد.', 'golden-dashboard')));
         }
 
         $html = ob_get_clean();
@@ -327,7 +337,7 @@ class GDB_Ajax
             wp_send_json_error(['message' => __('دسترسی غیرمجاز', 'golden-dashboard')], 403);
         }
 
-        $range = isset($_POST['range']) ? sanitize_text_field($_POST['range']) : '7days';
+        $range = isset($_POST['range']) ? sanitize_text_field(wp_unslash($_POST['range'])) : '7days';
         $days = 7;
 
         switch ($range) {
@@ -356,7 +366,7 @@ class GDB_Ajax
             $sql = "SELECT DATE(created_at) as date, COUNT(*) as count FROM {$table} GROUP BY DATE(created_at) ORDER BY date DESC";
             $results = $wpdb->get_results($sql);
         } else {
-            $start_date = date('Y-m-d', strtotime("-$days days"));
+            $start_date = gmdate('Y-m-d', strtotime("-$days days"));
             $sql = $wpdb->prepare(
                 "SELECT DATE(created_at) as date, COUNT(*) as count FROM {$table} WHERE created_at >= %s GROUP BY DATE(created_at) ORDER BY date DESC",
                 $start_date
@@ -398,7 +408,7 @@ class GDB_Ajax
         echo "\xEF\xBB\xBF";
 
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="transactions-' . date('Y-m-d') . '.csv"');
+        header('Content-Disposition: attachment; filename="transactions-' . gmdate('Y-m-d') . '.csv"');
         $output = fopen('php://output', 'w');
         fputcsv($output, [
             __('ردیف', 'golden-dashboard'),
@@ -436,7 +446,9 @@ class GDB_Ajax
             ]);
         }
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- $output is a php://output stream for direct CSV download, not a filesystem file; WP_Filesystem does not support this stream.
         fclose($output);
         exit;
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

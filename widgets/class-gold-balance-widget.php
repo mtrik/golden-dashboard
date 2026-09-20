@@ -54,7 +54,7 @@ class GDB_Gold_Balance_Widget extends GDB_Base_Widget {
             <?php endif; ?>
 
             <div class="gdb-gold-balance-content">
-                <?php echo GDB_Gold_Wallet::render_balances_html($user_id, $settings['empty_text']); ?>
+                <?php echo wp_kses_post(GDB_Gold_Wallet::render_balances_html($user_id, $settings['empty_text'])); ?>
             </div>
         </div>
         <?php

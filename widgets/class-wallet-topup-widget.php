@@ -900,9 +900,9 @@ class GDB_Wallet_Topup_Widget extends GDB_Base_Widget {
     protected function render() {
         if (!is_user_logged_in()) {
             if (function_exists('gdb_login_required')) {
-                echo gdb_login_required();
+                echo wp_kses_post(gdb_login_required());
             } else {
-                echo '<p>' . __('برای شارژ کیف پول ابتدا باید وارد سیستم شوید.', 'golden-dashboard') . '</p>';
+                echo '<p>' . esc_html__('برای شارژ کیف پول ابتدا باید وارد سیستم شوید.', 'golden-dashboard') . '</p>';
             }
             return;
         }
@@ -973,7 +973,7 @@ class GDB_Wallet_Topup_Widget extends GDB_Base_Widget {
                                 $amount_display = gdb_display_amount($amount);
                             ?>
                                 <button type="button" class="gdb-suggested-btn" data-amount="<?php echo esc_attr($amount_display); ?>">
-                                    <?php echo gdb_price($amount); ?>
+                                    <?php echo wp_kses_post(gdb_price($amount)); ?>
                                 </button>
                             <?php endif; ?>
                         <?php endforeach; ?>

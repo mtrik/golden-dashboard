@@ -94,13 +94,13 @@ class GDB_Gold_Wallet_Widget extends GDB_Base_Widget {
             <?php endif; ?>
 
             <div class="gdb-gold-wallet-price-row">
-                <span><?php _e('قیمت لحظه‌ای هر', 'golden-dashboard'); ?> <?php echo esc_html($type->unit_label); ?> <?php echo esc_html($type->name); ?>:</span>
+                <span><?php esc_html_e('قیمت لحظه‌ای هر', 'golden-dashboard'); ?> <?php echo esc_html($type->unit_label); ?> <?php echo esc_html($type->name); ?>:</span>
                 <strong class="gdb-gold-wallet-unit-price"><?php echo wp_kses_post(wc_price($price)); ?></strong>
             </div>
 
             <?php if ($user_id) : ?>
             <div class="gdb-gold-wallet-balance-row">
-                <span><?php _e('موجودی فعلی شما:', 'golden-dashboard'); ?></span>
+                <span><?php esc_html_e('موجودی فعلی شما:', 'golden-dashboard'); ?></span>
                 <strong class="gdb-gold-wallet-my-balance"><?php echo esc_html(rtrim(rtrim(number_format($gold_balance, 3), '0'), '.')); ?> <?php echo esc_html($type->unit_label); ?></strong>
             </div>
             <?php endif; ?>
@@ -138,7 +138,7 @@ class GDB_Gold_Wallet_Widget extends GDB_Base_Widget {
                 </div>
 
                 <div class="gdb-gold-wallet-total-row">
-                    <span><?php _e('مبلغ قابل پرداخت:', 'golden-dashboard'); ?></span>
+                    <span><?php esc_html_e('مبلغ قابل پرداخت:', 'golden-dashboard'); ?></span>
                     <strong class="gdb-gold-wallet-total-price">-</strong>
                 </div>
 
@@ -148,9 +148,12 @@ class GDB_Gold_Wallet_Widget extends GDB_Base_Widget {
                     <label class="gdb-gold-wallet-use-balance-row">
                         <input type="checkbox" name="use_wallet_balance" value="1" class="gdb-gold-wallet-use-balance">
                         <span>
-                            <?php _e('پرداخت بخشی از این سفارش با موجودی کیف پولم و باقی‌مانده از طریق درگاه', 'golden-dashboard'); ?>
+                            <?php esc_html_e('پرداخت بخشی از این سفارش با موجودی کیف پولم و باقی‌مانده از طریق درگاه', 'golden-dashboard'); ?>
                             <br>
-                            <small>(<?php printf(esc_html__('موجودی فعلی: %s', 'golden-dashboard'), esc_html($wallet_balance_plain)); ?>)</small>
+                            <small>(<?php
+                            /* translators: %s: current wallet balance */
+                            printf(esc_html__('موجودی فعلی: %s', 'golden-dashboard'), esc_html($wallet_balance_plain));
+                            ?>)</small>
                         </span>
                     </label>
                     <div class="gdb-gold-wallet-split-info" style="display:none;"></div>

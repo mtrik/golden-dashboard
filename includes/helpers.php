@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -80,9 +88,11 @@ if (!function_exists('gdb_get_safe_return_url')) {
     function gdb_get_safe_return_url($posted_field = 'gdb_return_url') {
         $return_url = '';
 
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- Shared helper only used to build a redirect target after the caller has already verified its own action nonce; value is escaped with esc_url_raw() and never used to change state here.
         if (!empty($_POST[$posted_field])) {
             $return_url = esc_url_raw(wp_unslash($_POST[$posted_field]));
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
 
         if (!$return_url) {
             $referer = wp_get_referer();
@@ -111,7 +121,9 @@ if (!function_exists('gdb_get_current_url_clean')) {
 
     function gdb_get_current_url_clean()
     {
-        $url = (is_ssl() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '');
+        $host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : '';
+        $uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+        $url = (is_ssl() ? 'https://' : 'http://') . $host . $uri;
         return remove_query_arg(['gdb_topup_result', 'gdb_gold_result', 'order_id', 'key', 'gdb_message'], $url);
     }
 
@@ -241,9 +253,11 @@ if (!function_exists('gdb_admin_redirect_error')) {
         
         
         $target = '';
+        // phpcs:disable WordPress.Security.NonceVerification.Missing -- Shared helper only used to build a redirect target after the caller has already verified its own action nonce; value is escaped with esc_url_raw() and never used to change state here.
         if (!empty($_POST['gdb_return_url'])) {
             $target = esc_url_raw(wp_unslash($_POST['gdb_return_url']));
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Missing
         if (!$target) {
             $target = wp_get_referer();
         }
@@ -386,11 +400,13 @@ if (!function_exists('gdb_render_transaction_item')) {
                 $parts[] = '<span class="gdb-admin-note">' . wpautop(esc_html($tx->admin_note)) . '</span>';
             }
             if (!empty($tx->bank_transaction_id)) {
+                /* translators: %s: bank transaction ID */
                 $parts[] = '<span class="gdb-bank-id">' . sprintf(__('شماره تراکنش: %s', 'golden-dashboard'), esc_html($tx->bank_transaction_id)) . '</span>';
             }
             if (!empty($tx->bank_date)) {
                 $bank_date_display = gdb_date_jalali($tx->bank_date, false);
                 if ($bank_date_display) {
+                    /* translators: %s: bank deposit date */
                     $parts[] = '<span class="gdb-bank-date">' . sprintf(__('تاریخ واریز: %s', 'golden-dashboard'), $bank_date_display) . '</span>';
                 }
             }
@@ -402,7 +418,8 @@ if (!function_exists('gdb_render_transaction_item')) {
         $fee_display = '';
         if ($settings['show_fee'] && in_array($tx->transaction_type, ['withdraw_request', 'withdraw']) && isset($tx->fee_amount) && $tx->fee_amount > 0) {
             $fee_display = '<div class="gdb-transaction-fee" style="font-size: 12px; color: #6b7280; margin-top: 2px;">' 
-                . sprintf(__('کارمزد: %s (%.2f%%)', 'golden-dashboard'), gdb_price($tx->fee_amount), ($tx->fee_amount / $tx->amount * 100)) 
+                /* translators: 1: fee amount, 2: fee percent */
+                . sprintf(__('کارمزد: %1$s (%2$.2f%%)', 'golden-dashboard'), gdb_price($tx->fee_amount), ($tx->fee_amount / $tx->amount * 100)) 
                 . '</div>';
         }
 
@@ -414,7 +431,7 @@ if (!function_exists('gdb_render_transaction_item')) {
             <?php if ($settings['show_amount']) : ?>
                 <div class="gdb-transaction-amount <?php echo esc_attr($amount_class); ?>">
                     <span class="gdb-amount-sign"><?php echo esc_html($sign); ?></span>
-                    <?php echo gdb_price(abs($tx->amount)); ?>
+                    <?php echo wp_kses_post(gdb_price(abs($tx->amount))); ?>
                 </div>
             <?php endif; ?>
 
@@ -424,20 +441,20 @@ if (!function_exists('gdb_render_transaction_item')) {
                     <?php if ($settings['show_date']) : ?>
                         <span class="gdb-transaction-date-inline"><?php echo esc_html(gdb_date_jalali($tx->created_at, true)); ?></span>
                     <?php endif; ?>
-                    <?php echo $status_display; ?>
+                    <?php echo wp_kses_post($status_display); ?>
                 </div>
 
                 <?php if ($settings['show_description'] && !empty($tx->description)) : ?>
                     <div class="gdb-transaction-description"><?php echo esc_html($tx->description); ?></div>
                 <?php endif; ?>
 
-                <?php echo $fee_display; ?>
-                <?php echo $admin_info; ?>
+                <?php echo wp_kses_post($fee_display); ?>
+                <?php echo wp_kses_post($admin_info); ?>
 
                 <?php if ($settings['show_balance_after']) : ?>
                     <div class="gdb-transaction-balance">
-                        <?php _e('موجودی بعد:', 'golden-dashboard'); ?>
-                        <?php echo gdb_price($tx->balance_after); ?>
+                        <?php esc_html_e('موجودی بعد:', 'golden-dashboard'); ?>
+                        <?php echo wp_kses_post(gdb_price($tx->balance_after)); ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -469,7 +486,7 @@ if (!function_exists('gdb_render_history_table_paginated')) {
         ]);
 
         if (!$transactions) {
-            echo gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard'));
+            echo wp_kses_post(gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard')));
             return;
         }
 
@@ -500,31 +517,31 @@ if (!function_exists('gdb_render_history_table_paginated')) {
                 <thead>
                     <tr>
                         <?php if ($columns['row_number']) : ?>
-                            <th><?php _e('ردیف', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('ردیف', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['date']) : ?>
-                            <th><?php _e('تاریخ', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('تاریخ', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['type']) : ?>
-                            <th><?php _e('نوع تراکنش', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('نوع تراکنش', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['amount']) : ?>
-                            <th><?php _e('مبلغ', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('مبلغ', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['fee']) : ?>
-                            <th><?php _e('کارمزد', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('کارمزد', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['balance_before']) : ?>
-                            <th><?php _e('موجودی قبل', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('موجودی قبل', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['balance_after']) : ?>
-                            <th><?php _e('موجودی بعد', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('موجودی بعد', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['status']) : ?>
-                            <th><?php _e('وضعیت', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('وضعیت', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                         <?php if ($columns['description']) : ?>
-                            <th><?php _e('توضیحات', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('توضیحات', 'golden-dashboard'); ?></th>
                         <?php endif; ?>
                     </tr>
                 </thead>
@@ -558,11 +575,13 @@ if (!function_exists('gdb_render_history_table_paginated')) {
                                 $info_parts[] = '<span class="gdb-admin-note">' . esc_html($tx->admin_note) . '</span>';
                             }
                             if (!empty($tx->bank_transaction_id)) {
+                                /* translators: %s: bank transaction ID */
                                 $info_parts[] = '<span class="gdb-bank-id">' . sprintf(__('شماره تراکنش: %s', 'golden-dashboard'), esc_html($tx->bank_transaction_id)) . '</span>';
                             }
                             if (!empty($tx->bank_date)) {
                                 $bank_date_display = gdb_date_jalali($tx->bank_date, false);
                                 if ($bank_date_display) {
+                                    /* translators: %s: bank deposit date */
                                     $info_parts[] = '<span class="gdb-bank-date">' . sprintf(__('تاریخ واریز: %s', 'golden-dashboard'), $bank_date_display) . '</span>';
                                 }
                             }
@@ -573,7 +592,7 @@ if (!function_exists('gdb_render_history_table_paginated')) {
                     ?>
                         <tr class="<?php echo esc_attr($row_class); ?>">
                             <?php if ($columns['row_number']) : ?>
-                                <td data-title="<?php esc_attr_e('ردیف', 'golden-dashboard'); ?>"><?php echo $row_num++; ?></td>
+                                <td data-title="<?php esc_attr_e('ردیف', 'golden-dashboard'); ?>"><?php echo esc_html($row_num++); ?></td>
                             <?php endif; ?>
                             <?php if ($columns['date']) : ?>
                                 <td data-title="<?php esc_attr_e('تاریخ', 'golden-dashboard'); ?>">
@@ -591,28 +610,28 @@ if (!function_exists('gdb_render_history_table_paginated')) {
                                 <td data-title="<?php esc_attr_e('مبلغ', 'golden-dashboard'); ?>">
                                     <span class="gdb-history-amount <?php echo esc_attr($amount_class); ?>">
                                         <?php echo esc_html($sign); ?>
-                                        <?php echo gdb_price(abs($tx->amount)); ?>
+                                        <?php echo wp_kses_post(gdb_price(abs($tx->amount))); ?>
                                     </span>
                                 </td>
                             <?php endif; ?>
                             <?php if ($columns['fee']) : ?>
                                 <td data-title="<?php esc_attr_e('کارمزد', 'golden-dashboard'); ?>">
-                                    <?php echo $fee_display; ?>
+                                    <?php echo wp_kses_post($fee_display); ?>
                                 </td>
                             <?php endif; ?>
                             <?php if ($columns['balance_before']) : ?>
                                 <td data-title="<?php esc_attr_e('موجودی قبل', 'golden-dashboard'); ?>">
-                                    <?php echo gdb_price($balance_before); ?>
+                                    <?php echo wp_kses_post(gdb_price($balance_before)); ?>
                                 </td>
                             <?php endif; ?>
                             <?php if ($columns['balance_after']) : ?>
                                 <td data-title="<?php esc_attr_e('موجودی بعد', 'golden-dashboard'); ?>">
-                                    <strong><?php echo gdb_price($tx->balance_after); ?></strong>
+                                    <strong><?php echo wp_kses_post(gdb_price($tx->balance_after)); ?></strong>
                                 </td>
                             <?php endif; ?>
                             <?php if ($columns['status']) : ?>
                                 <td data-title="<?php esc_attr_e('وضعیت', 'golden-dashboard'); ?>">
-                                    <?php echo $status_badge; ?>
+                                    <?php echo wp_kses_post($status_badge); ?>
                                 </td>
                             <?php endif; ?>
                             <?php if ($columns['description']) : ?>
@@ -635,14 +654,14 @@ if (!function_exists('gdb_render_history_table_paginated')) {
                     'filter_transaction_type' => $filter_transaction_type,
                 ], $base_url);
 
-                echo paginate_links([
+                echo wp_kses_post(paginate_links([
                     'base'      => add_query_arg('history_page', '%#%', $base_url),
                     'format'    => '',
                     'prev_text' => '&laquo;',
                     'next_text' => '&raquo;',
                     'total'     => $pages,
                     'current'   => $current_page,
-                ]);
+                ]));
                 ?>
             </div>
         <?php endif; ?>
@@ -714,10 +733,12 @@ if (!function_exists('gdb_get_wallet_history_paginated')) {
             $params[] = $filter_transaction_type;
         }
 
+        // phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where is built dynamically from a fixed set of %d/%s placeholders always pushed to $params in the same order and count; manually verified to match at every branch.
         $count_sql = $wpdb->prepare(
             "SELECT COUNT(*) FROM {$table} t1 {$where}",
             $params
         );
+        // phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
         $total = (int) $wpdb->get_var($count_sql);
 
         if ($total === 0) {
@@ -728,6 +749,7 @@ if (!function_exists('gdb_get_wallet_history_paginated')) {
         $per_page = max(1, intval($per_page));
         $offset = ($page - 1) * $per_page;
 
+        // phpcs:disable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $where contributes 1 or 2 placeholders and $params has the matching count; combined with the 2 literal LIMIT/OFFSET placeholders and array_merge($params, [$per_page, $offset]), counts always match. Manually verified.
         $sql = $wpdb->prepare(
             "SELECT t1.*,
                 (SELECT balance_after
@@ -742,6 +764,7 @@ if (!function_exists('gdb_get_wallet_history_paginated')) {
              LIMIT %d OFFSET %d",
             array_merge($params, [$per_page, $offset])
         );
+        // phpcs:enable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
         $items = $wpdb->get_results($sql);
         $pages = ceil($total / $per_page);
@@ -756,6 +779,7 @@ if (!function_exists('gdb_get_wallet_history_paginated')) {
 
 if (!function_exists('gdb_generate_tracking_code')) {
     function gdb_generate_tracking_code() {
-        return (string) rand(100000000000, 999999999999);
+        return (string) wp_rand(100000000000, 999999999999);
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

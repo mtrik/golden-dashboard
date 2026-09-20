@@ -97,7 +97,8 @@ class GDB_Assets
                              has_shortcode($post->post_content, 'gold_wallet_transactions');
         }
 
-        $is_elementor_editor = (isset($_GET['elementor-preview']) || isset($_GET['elementor']) || (isset($_REQUEST['action']) && $_REQUEST['action'] === 'elementor'));
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only detection of whether the current request is the Elementor editor/preview; no data is written or changed here.
+        $is_elementor_editor = (isset($_GET['elementor-preview']) || isset($_GET['elementor']) || (isset($_REQUEST['action']) && sanitize_key(wp_unslash($_REQUEST['action'])) === 'elementor'));
 
         $has_elementor_widget = false;
         if (!$has_shortcode && !$is_elementor_editor && !is_admin() && class_exists('\Elementor\Plugin')) {

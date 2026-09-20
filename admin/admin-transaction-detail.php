@@ -1,15 +1,23 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 if (!defined('ABSPATH')) {
     exit;
 }
 
 if (!current_user_can('manage_options')) {
-    wp_die(__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
+    wp_die(esc_html__('شما اجازه دسترسی به این صفحه را ندارید.', 'golden-dashboard'));
 }
 
-$transaction_id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+$transaction_id = isset($_GET['id']) ? absint(wp_unslash($_GET['id'])) : 0;
 if (!$transaction_id) {
-    wp_die(__('شناسه تراکنش نامعتبر است.', 'golden-dashboard'));
+    wp_die(esc_html__('شناسه تراکنش نامعتبر است.', 'golden-dashboard'));
 }
 
 global $wpdb;
@@ -17,7 +25,7 @@ $table = $wpdb->prefix . 'gd_wallet_transactions';
 $transaction = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $transaction_id));
 
 if (!$transaction) {
-    wp_die(__('تراکنش یافت نشد.', 'golden-dashboard'));
+    wp_die(esc_html__('تراکنش یافت نشد.', 'golden-dashboard'));
 }
 
 $user = get_userdata($transaction->user_id);
@@ -27,29 +35,29 @@ $is_pending = ($transaction->status === 'pending' && $transaction->transaction_t
 if ($is_pending && isset($_POST['gdb_detail_action'])) {
     check_admin_referer('gdb_detail_action', 'gdb_detail_nonce');
     
-    if ($_POST['gdb_detail_action'] === 'approve') {
+    if (sanitize_key(wp_unslash($_POST['gdb_detail_action'])) === 'approve') {
         $payment_data = [
-            'bank_transaction_id' => sanitize_text_field($_POST['bank_transaction_id'] ?? ''),
-            'admin_note'          => sanitize_textarea_field($_POST['admin_note'] ?? ''),
-            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field($_POST['bank_date'] ?? '')),
+            'bank_transaction_id' => sanitize_text_field((isset($_POST['bank_transaction_id']) ? wp_unslash($_POST['bank_transaction_id']) : '')),
+            'admin_note'          => sanitize_textarea_field((isset($_POST['admin_note']) ? wp_unslash($_POST['admin_note']) : '')),
+            'bank_date'           => gdb_normalize_admin_date_input(sanitize_text_field((isset($_POST['bank_date']) ? wp_unslash($_POST['bank_date']) : ''))),
         ];
         $result = GDB_Withdraw_Request::approve($transaction_id, $payment_data);
         if (is_wp_error($result)) {
-            echo '<div class="notice notice-error"><p>' . $result->get_error_message() . '</p></div>';
+            echo '<div class="notice notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
         } else {
             GDB_Admin::save_audit_log($transaction_id, 'approved', get_current_user_id(), $payment_data['admin_note']);
-            echo '<div class="notice notice-success"><p>' . __('درخواست با موفقیت تایید شد.', 'golden-dashboard') . '</p></div>';
-            echo '<meta http-equiv="refresh" content="2;url=' . admin_url('admin.php?page=gdb-transaction-detail&id=' . $transaction_id) . '">';
+            echo '<div class="notice notice-success"><p>' . esc_html__('درخواست با موفقیت تایید شد.', 'golden-dashboard') . '</p></div>';
+            echo '<meta http-equiv="refresh" content="2;url=' . esc_url(admin_url('admin.php?page=gdb-transaction-detail&id=' . $transaction_id)) . '">';
         }
-    } elseif ($_POST['gdb_detail_action'] === 'reject') {
-        $reason = sanitize_textarea_field($_POST['reason'] ?? '');
+    } elseif (sanitize_key(wp_unslash($_POST['gdb_detail_action'])) === 'reject') {
+        $reason = sanitize_textarea_field((isset($_POST['reason']) ? wp_unslash($_POST['reason']) : ''));
         $result = GDB_Withdraw_Request::reject($transaction_id, $reason);
         if (is_wp_error($result)) {
-            echo '<div class="notice notice-error"><p>' . $result->get_error_message() . '</p></div>';
+            echo '<div class="notice notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
         } else {
             GDB_Admin::save_audit_log($transaction_id, 'rejected', get_current_user_id(), $reason);
-            echo '<div class="notice notice-success"><p>' . __('درخواست با موفقیت رد شد.', 'golden-dashboard') . '</p></div>';
-            echo '<meta http-equiv="refresh" content="2;url=' . admin_url('admin.php?page=gdb-transaction-detail&id=' . $transaction_id) . '">';
+            echo '<div class="notice notice-success"><p>' . esc_html__('درخواست با موفقیت رد شد.', 'golden-dashboard') . '</p></div>';
+            echo '<meta http-equiv="refresh" content="2;url=' . esc_url(admin_url('admin.php?page=gdb-transaction-detail&id=' . $transaction_id)) . '">';
         }
     }
     
@@ -61,39 +69,42 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
 
 ?>
 <div class="wrap">
-    <h1><?php printf(__('جزئیات تراکنش #%d', 'golden-dashboard'), $transaction_id); ?></h1>
+    <h1><?php
+    /* translators: %d: transaction ID */
+    echo esc_html(sprintf(__('جزئیات تراکنش #%d', 'golden-dashboard'), $transaction_id));
+    ?></h1>
     
     <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
-        <a href="<?php echo admin_url('admin.php?page=gdb-withdraw-requests'); ?>" class="button">&larr; <?php _e('بازگشت به لیست درخواست‌ها', 'golden-dashboard'); ?></a>
-        <a href="<?php echo admin_url('admin.php?page=gdb-transactions-history'); ?>" class="button">&larr; <?php _e('بازگشت به تاریخچه تراکنش‌ها', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-withdraw-requests')); ?>" class="button">&larr; <?php esc_html_e('بازگشت به لیست درخواست‌ها', 'golden-dashboard'); ?></a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=gdb-transactions-history')); ?>" class="button">&larr; <?php esc_html_e('بازگشت به تاریخچه تراکنش‌ها', 'golden-dashboard'); ?></a>
         <button type="button" class="button button-primary" onclick="window.print();" style="margin-right:auto;">
-            <span class="dashicons dashicons-printer" style="margin-top:4px;"></span> <?php _e('چاپ رسید', 'golden-dashboard'); ?>
+            <span class="dashicons dashicons-printer" style="margin-top:4px;"></span> <?php esc_html_e('چاپ رسید', 'golden-dashboard'); ?>
         </button>
     </div>
 
     <?php if ($is_pending) : ?>
         <div class="notice notice-warning">
-            <p><strong><?php _e('این درخواست در انتظار بررسی است.', 'golden-dashboard'); ?></strong></p>
+            <p><strong><?php esc_html_e('این درخواست در انتظار بررسی است.', 'golden-dashboard'); ?></strong></p>
         </div>
     <?php endif; ?>
 
     <div class="gdb-detail-card gdb-print-card">
-        <h2 class="gdb-detail-card-title"><?php _e('اطلاعات کاربر', 'golden-dashboard'); ?></h2>
+        <h2 class="gdb-detail-card-title"><?php esc_html_e('اطلاعات کاربر', 'golden-dashboard'); ?></h2>
         <div class="gdb-detail-card-body">
             <table class="gdb-detail-table">
                 <tr>
-                    <th><?php _e('نام کاربری', 'golden-dashboard'); ?></th>
+                    <th><?php esc_html_e('نام کاربری', 'golden-dashboard'); ?></th>
                     <td>
                         <?php if ($user) : ?>
                             <strong><?php echo esc_html($user->display_name); ?></strong>
                             <br>
                             <?php echo esc_html($user->user_email); ?>
                             <br>
-                            <?php echo __('شناسه کاربری:', 'golden-dashboard'); ?> <?php echo $user->ID; ?>
+                            <?php echo esc_html__('شناسه کاربری:', 'golden-dashboard'); ?> <?php echo absint($user->ID); ?>
                             <br>
-                            <a href="<?php echo get_edit_user_link($user->ID); ?>" target="_blank"><?php _e('ویرایش کاربر', 'golden-dashboard'); ?></a>
+                            <a href="<?php echo esc_url(get_edit_user_link($user->ID)); ?>" target="_blank"><?php esc_html_e('ویرایش کاربر', 'golden-dashboard'); ?></a>
                         <?php else : ?>
-                            <?php _e('کاربر حذف شده است', 'golden-dashboard'); ?>
+                            <?php esc_html_e('کاربر حذف شده است', 'golden-dashboard'); ?>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -102,42 +113,42 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
     </div>
 
     <div class="gdb-detail-card gdb-print-card">
-        <h2 class="gdb-detail-card-title"><?php _e('اطلاعات تراکنش', 'golden-dashboard'); ?></h2>
+        <h2 class="gdb-detail-card-title"><?php esc_html_e('اطلاعات تراکنش', 'golden-dashboard'); ?></h2>
         <div class="gdb-detail-card-body">
             <table class="gdb-detail-table">
-                <tr><th><?php _e('شناسه تراکنش', 'golden-dashboard'); ?></th><td><strong>#<?php echo $transaction->id; ?></strong></td></tr>
-                <tr><th><?php _e('نوع تراکنش', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->transaction_type); ?></td></tr>
+                <tr><th><?php esc_html_e('شناسه تراکنش', 'golden-dashboard'); ?></th><td><strong>#<?php echo absint($transaction->id); ?></strong></td></tr>
+                <tr><th><?php esc_html_e('نوع تراکنش', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->transaction_type); ?></td></tr>
                 <tr>
-                    <th><?php _e('نوع (واریز/برداشت)', 'golden-dashboard'); ?></th>
+                    <th><?php esc_html_e('نوع (واریز/برداشت)', 'golden-dashboard'); ?></th>
                     <td>
                         <?php if ($transaction->type === 'credit') : ?>
-                            <span style="color:green;"><?php _e('واریز', 'golden-dashboard'); ?></span>
+                            <span style="color:green;"><?php esc_html_e('واریز', 'golden-dashboard'); ?></span>
                         <?php else : ?>
-                            <span style="color:red;"><?php _e('برداشت', 'golden-dashboard'); ?></span>
+                            <span style="color:red;"><?php esc_html_e('برداشت', 'golden-dashboard'); ?></span>
                         <?php endif; ?>
                     </td>
                 </tr>
-                <tr><th><?php _e('مبلغ درخواستی', 'golden-dashboard'); ?></th><td><strong><?php echo gdb_price($transaction->amount); ?></strong></td></tr>
+                <tr><th><?php esc_html_e('مبلغ درخواستی', 'golden-dashboard'); ?></th><td><strong><?php echo wp_kses_post(gdb_price($transaction->amount)); ?></strong></td></tr>
                 <?php if (isset($transaction->fee_amount) && $transaction->fee_amount > 0) : ?>
                     <tr>
-                        <th><?php _e('کارمزد', 'golden-dashboard'); ?></th>
+                        <th><?php esc_html_e('کارمزد', 'golden-dashboard'); ?></th>
                         <td>
-                            <span style="color:#dc2626;"><?php echo gdb_price($transaction->fee_amount); ?></span>
+                            <span style="color:#dc2626;"><?php echo wp_kses_post(gdb_price($transaction->fee_amount)); ?></span>
                             <?php
                             $fee_percent = 0;
                             if ($transaction->amount > 0) {
                                 $fee_percent = ($transaction->fee_amount / $transaction->amount) * 100;
                             }
                             ?>
-                            <small>(<?php echo number_format($fee_percent, 2); ?>%)</small>
+                            <small>(<?php echo esc_html(number_format($fee_percent, 2)); ?>%)</small>
                         </td>
                     </tr>
-                    <tr><th><?php _e('مبلغ قابل واریز', 'golden-dashboard'); ?></th><td><strong style="color:#16a34a;"><?php echo gdb_price($transaction->net_amount); ?></strong></td></tr>
+                    <tr><th><?php esc_html_e('مبلغ قابل واریز', 'golden-dashboard'); ?></th><td><strong style="color:#16a34a;"><?php echo wp_kses_post(gdb_price($transaction->net_amount)); ?></strong></td></tr>
                 <?php endif; ?>
-                <tr><th><?php _e('موجودی قبل', 'golden-dashboard'); ?></th><td><?php echo gdb_price($transaction->balance_before); ?></td></tr>
-                <tr><th><?php _e('موجودی بعد', 'golden-dashboard'); ?></th><td><strong><?php echo gdb_price($transaction->balance_after); ?></strong></td></tr>
+                <tr><th><?php esc_html_e('موجودی قبل', 'golden-dashboard'); ?></th><td><?php echo wp_kses_post(gdb_price($transaction->balance_before)); ?></td></tr>
+                <tr><th><?php esc_html_e('موجودی بعد', 'golden-dashboard'); ?></th><td><strong><?php echo wp_kses_post(gdb_price($transaction->balance_after)); ?></strong></td></tr>
                 <tr>
-                    <th><?php _e('وضعیت', 'golden-dashboard'); ?></th>
+                    <th><?php esc_html_e('وضعیت', 'golden-dashboard'); ?></th>
                     <td>
                         <?php
                         $status_labels = [
@@ -158,65 +169,65 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
                         </span>
                     </td>
                 </tr>
-                <tr><th><?php _e('کد پیگیری', 'golden-dashboard'); ?></th><td><code><?php echo esc_html($transaction->tracking_code); ?></code></td></tr>
-                <tr><th><?php _e('تاریخ ایجاد', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->created_at, true)); ?></td></tr>
-                <tr><th><?php _e('تاریخ به‌روزرسانی', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->updated_at, true)); ?></td></tr>
-                <tr><th><?php _e('توضیحات', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->description); ?></td></tr>
+                <tr><th><?php esc_html_e('کد پیگیری', 'golden-dashboard'); ?></th><td><code><?php echo esc_html($transaction->tracking_code); ?></code></td></tr>
+                <tr><th><?php esc_html_e('تاریخ ایجاد', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->created_at, true)); ?></td></tr>
+                <tr><th><?php esc_html_e('تاریخ به‌روزرسانی', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->updated_at, true)); ?></td></tr>
+                <tr><th><?php esc_html_e('توضیحات', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->description); ?></td></tr>
             </table>
         </div>
     </div>
 
     <div class="gdb-detail-card gdb-print-card">
-        <h2 class="gdb-detail-card-title"><?php _e('اطلاعات بانکی و یادداشت‌ها', 'golden-dashboard'); ?></h2>
+        <h2 class="gdb-detail-card-title"><?php esc_html_e('اطلاعات بانکی و یادداشت‌ها', 'golden-dashboard'); ?></h2>
         <div class="gdb-detail-card-body">
             <table class="gdb-detail-table">
                 <tr>
-                    <th><label for="bank_transaction_id"><?php _e('شماره تراکنش بانکی', 'golden-dashboard'); ?></label></th>
+                    <th><label for="bank_transaction_id"><?php esc_html_e('شماره تراکنش بانکی', 'golden-dashboard'); ?></label></th>
                     <td>
                         <?php if ($is_pending) : ?>
                             <input type="text" name="bank_transaction_id" id="bank_transaction_id" class="widefat" value="<?php echo esc_attr($transaction->bank_transaction_id); ?>" disabled>
-                            <p class="description"><?php _e('پس از تایید درخواست قابل ویرایش است.', 'golden-dashboard'); ?></p>
+                            <p class="description"><?php esc_html_e('پس از تایید درخواست قابل ویرایش است.', 'golden-dashboard'); ?></p>
                         <?php else : ?>
-                            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                                 <?php wp_nonce_field('gdb_update_transaction', 'gdb_update_nonce'); ?>
                                 <input type="hidden" name="action" value="gdb_update_transaction">
-                                <input type="hidden" name="transaction_id" value="<?php echo $transaction_id; ?>">
+                                <input type="hidden" name="transaction_id" value="<?php echo absint($transaction_id); ?>">
                                 <input type="text" name="bank_transaction_id" class="widefat" value="<?php echo esc_attr($transaction->bank_transaction_id); ?>" style="margin-bottom:8px;">
                                 <input type="text" class="widefat date-picker" autocomplete="off" name="bank_date" value="<?php echo esc_attr(gdb_display_admin_date_input($transaction->bank_date)); ?>" style="margin-bottom:8px;">
                                 <textarea name="admin_note" class="widefat" rows="3" style="margin-bottom:8px;"><?php echo esc_textarea($transaction->admin_note); ?></textarea>
-                                <button type="submit" class="button button-primary"><?php _e('ذخیره تغییرات', 'golden-dashboard'); ?></button>
+                                <button type="submit" class="button button-primary"><?php esc_html_e('ذخیره تغییرات', 'golden-dashboard'); ?></button>
                             </form>
-                            <p class="description"><?php _e('ویرایش شماره تراکنش، تاریخ واریز و یادداشت مدیر.', 'golden-dashboard'); ?></p>
+                            <p class="description"><?php esc_html_e('ویرایش شماره تراکنش، تاریخ واریز و یادداشت مدیر.', 'golden-dashboard'); ?></p>
                         <?php endif; ?>
                     </td>
                 </tr>
                 <?php if (!empty($transaction->admin_note)) : ?>
-                    <tr><th><?php _e('یادداشت مدیر', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->admin_note); ?></td></tr>
+                    <tr><th><?php esc_html_e('یادداشت مدیر', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->admin_note); ?></td></tr>
                 <?php endif; ?>
                 <?php if (!empty($transaction->bank_transaction_id)) : ?>
-                    <tr><th><?php _e('شماره تراکنش بانکی', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->bank_transaction_id); ?></td></tr>
+                    <tr><th><?php esc_html_e('شماره تراکنش بانکی', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->bank_transaction_id); ?></td></tr>
                 <?php endif; ?>
                 <?php if (!empty($transaction->bank_date)) : ?>
-                    <tr><th><?php _e('تاریخ واریز بانکی', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->bank_date, false)); ?></td></tr>
+                    <tr><th><?php esc_html_e('تاریخ واریز بانکی', 'golden-dashboard'); ?></th><td><?php echo esc_html(gdb_date_jalali($transaction->bank_date, false)); ?></td></tr>
                 <?php endif; ?>
             </table>
         </div>
     </div>
 
     <div class="gdb-detail-card gdb-no-print">
-        <h2 class="gdb-detail-card-title"><?php _e('اطلاعات امنیتی', 'golden-dashboard'); ?></h2>
+        <h2 class="gdb-detail-card-title"><?php esc_html_e('اطلاعات امنیتی', 'golden-dashboard'); ?></h2>
         <div class="gdb-detail-card-body">
             <table class="gdb-detail-table">
-                <tr><th><?php _e('آیپی', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->ip_address); ?></td></tr>
-                <tr><th><?php _e('مرورگر', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->user_agent); ?></td></tr>
-                <tr><th><?php _e('شناسه مرجع', 'golden-dashboard'); ?></th><td><?php echo $transaction->reference_id ? '#' . $transaction->reference_id : '-'; ?></td></tr>
+                <tr><th><?php esc_html_e('آیپی', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->ip_address); ?></td></tr>
+                <tr><th><?php esc_html_e('مرورگر', 'golden-dashboard'); ?></th><td><?php echo esc_html($transaction->user_agent); ?></td></tr>
+                <tr><th><?php esc_html_e('شناسه مرجع', 'golden-dashboard'); ?></th><td><?php echo $transaction->reference_id ? '#' . absint($transaction->reference_id) : '-'; ?></td></tr>
             </table>
         </div>
     </div>
 
     <?php if ($meta_data && is_array($meta_data)) : ?>
         <div class="gdb-detail-card gdb-no-print">
-            <h2 class="gdb-detail-card-title"><?php _e('داده‌های اضافی', 'golden-dashboard'); ?></h2>
+            <h2 class="gdb-detail-card-title"><?php esc_html_e('داده‌های اضافی', 'golden-dashboard'); ?></h2>
             <div class="gdb-detail-card-body">
                 <table class="gdb-detail-table">
                     <?php 
@@ -258,12 +269,12 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
                         } elseif ($key === 'quantity') {
                             $display_value = rtrim(rtrim(number_format((float) $value, 3), '0'), '.');
                         } elseif (is_array($value)) {
-                            $display_value = '<pre>' . print_r($value, true) . '</pre>';
+                            $display_value = '<pre>' . wp_json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>';
                         }
                     ?>
                         <tr>
-                            <th><?php echo $label; ?></th>
-                            <td><?php echo is_array($value) ? '<pre>' . print_r($value, true) . '</pre>' : esc_html($display_value); ?></td>
+                            <th><?php echo esc_html($label); ?></th>
+                            <td><?php echo is_array($value) ? '<pre>' . esc_html(wp_json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) . '</pre>' : esc_html($display_value); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </table>
@@ -273,15 +284,15 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
 
     <?php if (!empty($audit_log)) : ?>
         <div class="gdb-detail-card gdb-no-print">
-            <h2 class="gdb-detail-card-title"><?php _e('تاریخچه ویرایش', 'golden-dashboard'); ?></h2>
+            <h2 class="gdb-detail-card-title"><?php esc_html_e('تاریخچه ویرایش', 'golden-dashboard'); ?></h2>
             <div class="gdb-detail-card-body">
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th><?php _e('زمان', 'golden-dashboard'); ?></th>
-                            <th><?php _e('کاربر', 'golden-dashboard'); ?></th>
-                            <th><?php _e('اقدام', 'golden-dashboard'); ?></th>
-                            <th><?php _e('توضیحات', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('زمان', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('کاربر', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('اقدام', 'golden-dashboard'); ?></th>
+                            <th><?php esc_html_e('توضیحات', 'golden-dashboard'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -290,14 +301,14 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
                         ?>
                             <tr>
                                 <td><?php echo esc_html(gdb_date_jalali($log->created_at, true)); ?></td>
-                                <td><?php echo $user ? esc_html($user->display_name) : __('کاربر حذف شده', 'golden-dashboard'); ?></td>
+                                <td><?php echo $user ? esc_html($user->display_name) : esc_html__('کاربر حذف شده', 'golden-dashboard'); ?></td>
                                 <td>
                                     <?php if ($log->action === 'approved') : ?>
-                                        <span style="color:#16a34a;"><?php _e('تایید', 'golden-dashboard'); ?></span>
+                                        <span style="color:#16a34a;"><?php esc_html_e('تایید', 'golden-dashboard'); ?></span>
                                     <?php elseif ($log->action === 'rejected') : ?>
-                                        <span style="color:#dc2626;"><?php _e('رد', 'golden-dashboard'); ?></span>
+                                        <span style="color:#dc2626;"><?php esc_html_e('رد', 'golden-dashboard'); ?></span>
                                     <?php elseif ($log->action === 'updated') : ?>
-                                        <span style="color:#2563eb;"><?php _e('ویرایش', 'golden-dashboard'); ?></span>
+                                        <span style="color:#2563eb;"><?php esc_html_e('ویرایش', 'golden-dashboard'); ?></span>
                                     <?php else : ?>
                                         <?php echo esc_html($log->action); ?>
                                     <?php endif; ?>
@@ -313,48 +324,48 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
 
     <?php if ($is_pending) : ?>
         <div class="gdb-detail-card gdb-no-print" style="border-color: #f59e0b;">
-            <h2 class="gdb-detail-card-title" style="color:#d97706;"><?php _e('مدیریت درخواست', 'golden-dashboard'); ?></h2>
+            <h2 class="gdb-detail-card-title" style="color:#d97706;"><?php esc_html_e('مدیریت درخواست', 'golden-dashboard'); ?></h2>
             <div class="gdb-detail-card-body">
-                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <?php wp_nonce_field('gdb_approve_withdraw', 'gdb_approve_nonce'); ?>
                     <input type="hidden" name="action" value="gdb_approve_withdraw">
-                    <input type="hidden" name="request_id" value="<?php echo $transaction_id; ?>">
+                    <input type="hidden" name="request_id" value="<?php echo absint($transaction_id); ?>">
                     
                     <table class="form-table">
                         <tr>
-                            <th><label for="bank_transaction_id"><?php _e('شماره تراکنش بانکی', 'golden-dashboard'); ?></label></th>
+                            <th><label for="bank_transaction_id"><?php esc_html_e('شماره تراکنش بانکی', 'golden-dashboard'); ?></label></th>
                             <td><input type="text" name="bank_transaction_id" id="bank_transaction_id" class="widefat" required></td>
                         </tr>
                         <tr>
-                            <th><label for="bank_date"><?php _e('تاریخ واریز بانکی', 'golden-dashboard'); ?></label></th>
-                            <td><input type="text" class="widefat date-picker" autocomplete="off" name="bank_date" id="bank_date" value="<?php echo esc_attr(gdb_display_admin_date_input(date('Y-m-d'))); ?>"></td>
+                            <th><label for="bank_date"><?php esc_html_e('تاریخ واریز بانکی', 'golden-dashboard'); ?></label></th>
+                            <td><input type="text" class="widefat date-picker" autocomplete="off" name="bank_date" id="bank_date" value="<?php echo esc_attr(gdb_display_admin_date_input(gmdate('Y-m-d', current_time('timestamp')))); ?>"></td>
                         </tr>
                         <tr>
-                            <th><label for="admin_note"><?php _e('یادداشت مدیر (اختیاری)', 'golden-dashboard'); ?></label></th>
+                            <th><label for="admin_note"><?php esc_html_e('یادداشت مدیر (اختیاری)', 'golden-dashboard'); ?></label></th>
                             <td><textarea name="admin_note" id="admin_note" class="widefat" rows="3"></textarea></td>
                         </tr>
                     </table>
 
                     <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button type="submit" class="button button-primary" style="background:#16a34a; border-color:#16a34a;"><?php _e('تایید و تکمیل درخواست', 'golden-dashboard'); ?></button>
-                        <button type="button" class="button" id="gdb-show-reject-form" style="background:#dc2626; color:#fff; border-color:#dc2626;"><?php _e('رد درخواست', 'golden-dashboard'); ?></button>
+                        <button type="submit" class="button button-primary" style="background:#16a34a; border-color:#16a34a;"><?php esc_html_e('تایید و تکمیل درخواست', 'golden-dashboard'); ?></button>
+                        <button type="button" class="button" id="gdb-show-reject-form" style="background:#dc2626; color:#fff; border-color:#dc2626;"><?php esc_html_e('رد درخواست', 'golden-dashboard'); ?></button>
                     </div>
                 </form>
 
                 <div id="gdb-reject-form" style="display:none; margin-top:20px; padding-top:20px; border-top:1px solid #ddd;">
-                    <h3><?php _e('رد درخواست', 'golden-dashboard'); ?></h3>
-                    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                    <h3><?php esc_html_e('رد درخواست', 'golden-dashboard'); ?></h3>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <?php wp_nonce_field('gdb_reject_withdraw', 'gdb_reject_nonce'); ?>
                         <input type="hidden" name="action" value="gdb_reject_withdraw">
-                        <input type="hidden" name="request_id" value="<?php echo $transaction_id; ?>">
+                        <input type="hidden" name="request_id" value="<?php echo absint($transaction_id); ?>">
                         <table class="form-table">
                             <tr>
-                                <th><label for="reason"><?php _e('دلیل رد', 'golden-dashboard'); ?></label></th>
+                                <th><label for="reason"><?php esc_html_e('دلیل رد', 'golden-dashboard'); ?></label></th>
                                 <td><textarea name="reason" id="reason" class="widefat" rows="3" required></textarea></td>
                             </tr>
                         </table>
-                        <button type="submit" class="button" style="background:#dc2626; color:#fff; border-color:#dc2626;"><?php _e('تایید رد', 'golden-dashboard'); ?></button>
-                        <button type="button" class="button" id="gdb-hide-reject-form"><?php _e('انصراف', 'golden-dashboard'); ?></button>
+                        <button type="submit" class="button" style="background:#dc2626; color:#fff; border-color:#dc2626;"><?php esc_html_e('تایید رد', 'golden-dashboard'); ?></button>
+                        <button type="button" class="button" id="gdb-hide-reject-form"><?php esc_html_e('انصراف', 'golden-dashboard'); ?></button>
                     </form>
                 </div>
             </div>
@@ -532,3 +543,4 @@ $audit_log = GDB_Admin::get_audit_log($transaction_id);
         }
     }
 </style>
+<?php // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange ?>

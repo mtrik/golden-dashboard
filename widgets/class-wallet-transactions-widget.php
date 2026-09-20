@@ -540,7 +540,7 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
     protected function render()
     {
         if (!is_user_logged_in()) {
-            echo gdb_login_required();
+            echo wp_kses_post(gdb_login_required());
             return;
         }
 
@@ -548,9 +548,11 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
         $user_id  = get_current_user_id();
         $per_page = absint($settings['per_page']) ?: 10;
 
-        $filter_type = isset($_GET['filter_type']) ? sanitize_text_field($_GET['filter_type']) : '';
-        $filter_transaction_type = isset($_GET['filter_transaction_type']) ? sanitize_text_field($_GET['filter_transaction_type']) : '';
-        $current_page = isset($_GET['history_page']) ? absint($_GET['history_page']) : 1;
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only filtering/pagination of the current user's own transaction list; no data is written or changed here.
+        $filter_type = isset($_GET['filter_type']) ? sanitize_text_field(wp_unslash($_GET['filter_type'])) : '';
+        $filter_transaction_type = isset($_GET['filter_transaction_type']) ? sanitize_text_field(wp_unslash($_GET['filter_transaction_type'])) : '';
+        $current_page = isset($_GET['history_page']) ? absint(wp_unslash($_GET['history_page'])) : 1;
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         if ($current_page < 1) $current_page = 1;
 
         $result = gdb_get_wallet_history_paginated($user_id, $filter_type, $filter_transaction_type, $current_page, $per_page);
@@ -577,7 +579,8 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
 
             <form method="get" class="gdb-history-filters" data-ajax-filter="1">
                 <?php
-                $current_params = $_GET;
+                // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only re-display of existing GET query params as hidden fields to preserve filter state; all values are escaped on output and no data is written or changed here.
+                $current_params = wp_unslash($_GET);
                 unset($current_params['filter_type']);
                 unset($current_params['filter_transaction_type']);
                 unset($current_params['history_page']);
@@ -590,6 +593,7 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
                         echo '<input type="hidden" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '">';
                     }
                 }
+                // phpcs:enable WordPress.Security.NonceVerification.Recommended
                 ?>
 
                 <input type="hidden" name="show_history_row_number" value="<?php echo esc_attr($settings['show_history_row_number'] === 'yes' ? '1' : ''); ?>">
@@ -604,18 +608,18 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
                 <input type="hidden" name="history_per_page" value="<?php echo esc_attr($per_page); ?>">
 
                 <div class="gdb-filter-group">
-                    <label for="filter_type_<?php echo esc_attr($widget_id); ?>"><?php _e('نوع:', 'golden-dashboard'); ?></label>
+                    <label for="filter_type_<?php echo esc_attr($widget_id); ?>"><?php esc_html_e('نوع:', 'golden-dashboard'); ?></label>
                     <select name="filter_type" id="filter_type_<?php echo esc_attr($widget_id); ?>">
-                        <option value=""><?php _e('همه', 'golden-dashboard'); ?></option>
-                        <option value="credit" <?php selected($filter_type, 'credit'); ?>><?php _e('شارژ', 'golden-dashboard'); ?></option>
-                        <option value="debit" <?php selected($filter_type, 'debit'); ?>><?php _e('برداشت', 'golden-dashboard'); ?></option>
+                        <option value=""><?php esc_html_e('همه', 'golden-dashboard'); ?></option>
+                        <option value="credit" <?php selected($filter_type, 'credit'); ?>><?php esc_html_e('شارژ', 'golden-dashboard'); ?></option>
+                        <option value="debit" <?php selected($filter_type, 'debit'); ?>><?php esc_html_e('برداشت', 'golden-dashboard'); ?></option>
                     </select>
                 </div>
 
                 <div class="gdb-filter-group">
-                    <label for="filter_transaction_type_<?php echo esc_attr($widget_id); ?>"><?php _e('دسته:', 'golden-dashboard'); ?></label>
+                    <label for="filter_transaction_type_<?php echo esc_attr($widget_id); ?>"><?php esc_html_e('دسته:', 'golden-dashboard'); ?></label>
                     <select name="filter_transaction_type" id="filter_transaction_type_<?php echo esc_attr($widget_id); ?>">
-                        <option value=""><?php _e('همه', 'golden-dashboard'); ?></option>
+                        <option value=""><?php esc_html_e('همه', 'golden-dashboard'); ?></option>
                         <?php
                         $all_types = [
                             'admin_credit'        => __('شارژ توسط مدیر', 'golden-dashboard'),
@@ -636,21 +640,21 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
                             if (!in_array($value, $allowed_filter_types)) continue;
                             $selected = ($filter_transaction_type === $value) ? 'selected' : '';
                         ?>
-                            <option value="<?php echo esc_attr($value); ?>" <?php echo $selected; ?>><?php echo esc_html($label); ?></option>
+                            <option value="<?php echo esc_attr($value); ?>" <?php echo esc_attr($selected); ?>><?php echo esc_html($label); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <button type="submit" class="gdb-filter-submit"><?php _e('فیلتر', 'golden-dashboard'); ?></button>
+                <button type="submit" class="gdb-filter-submit"><?php esc_html_e('فیلتر', 'golden-dashboard'); ?></button>
 
                 <div class="gdb-export-buttons">
                     <button type="button" class="gdb-export-btn gdb-export-csv" title="<?php esc_attr_e('خروجی CSV', 'golden-dashboard'); ?>">
                         <span class="dashicons dashicons-download"></span>
-                        <span class="gdb-btn-label"><?php _e('CSV', 'golden-dashboard'); ?></span>
+                        <span class="gdb-btn-label"><?php esc_html_e('CSV', 'golden-dashboard'); ?></span>
                     </button>
                     <button type="button" class="gdb-export-btn gdb-export-print" title="<?php esc_attr_e('چاپ', 'golden-dashboard'); ?>">
                         <span class="dashicons dashicons-printer"></span>
-                        <span class="gdb-btn-label"><?php _e('چاپ', 'golden-dashboard'); ?></span>
+                        <span class="gdb-btn-label"><?php esc_html_e('چاپ', 'golden-dashboard'); ?></span>
                     </button>
                 </div>
             </form>
@@ -670,7 +674,7 @@ class GDB_Wallet_Transactions_Widget extends GDB_Base_Widget
                         true 
                     );
                 } else {
-                    echo gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard'));
+                    echo wp_kses_post(gdb_empty(__('هیچ تراکنشی با این فیلترها یافت نشد.', 'golden-dashboard')));
                 }
                 ?>
             </div>

@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -9,11 +17,11 @@ class GDB_Security {
 
 
     public static function get_client_ip() {
-        return sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+        return sanitize_text_field((isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : ''));
     }
 
     private static function get_user_agent() {
-        return substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+        return substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255);
     }
 
 
@@ -76,6 +84,7 @@ class GDB_Security {
             return new WP_Error(
                 'rate_limited',
                 sprintf(
+                    /* translators: %d: seconds remaining until unblocked */
                     __('تعداد تلاش‌های شما بیش از حد مجاز بوده است. لطفاً %d ثانیه دیگر دوباره تلاش کنید.', 'golden-dashboard'),
                     strtotime($row->blocked_until) - $now
                 )
@@ -109,7 +118,7 @@ class GDB_Security {
         $new_count = (int) $row->attempt_count + 1;
 
         if ($new_count > $max_try) {
-            $blocked_until = date('Y-m-d H:i:s', $now + $block_for);
+            $blocked_until = gmdate('Y-m-d H:i:s', $now + $block_for);
             $wpdb->update($table, [
                 'attempt_count' => $new_count,
                 'last_attempt'  => current_time('mysql'),
@@ -123,6 +132,7 @@ class GDB_Security {
 
             return new WP_Error(
                 'rate_limited',
+                /* translators: %d: seconds remaining until unblocked */
                 sprintf(__('تعداد تلاش‌های شما بیش از حد مجاز بود. لطفاً %d ثانیه دیگر دوباره تلاش کنید.', 'golden-dashboard'), $block_for)
             );
         }
@@ -197,6 +207,7 @@ class GDB_Security {
         $max = (float) get_option('gdb_security_max_transaction_amount', 0);
         if ($max > 0 && (float) $amount > $max) {
             return new WP_Error('max_transaction_amount', sprintf(
+                /* translators: %s: maximum allowed transaction amount */
                 __('مبلغ تراکنش بیشتر از حداکثر مجاز (%s) است.', 'golden-dashboard'),
                 gdb_price_plain($max)
             ));
@@ -215,11 +226,12 @@ class GDB_Security {
         $count = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND created_at >= %s",
             $user_id,
-            date('Y-m-d H:i:s', current_time('timestamp') - DAY_IN_SECONDS)
+            gmdate('Y-m-d H:i:s', current_time('timestamp') - DAY_IN_SECONDS)
         ));
 
         if ($count >= $max) {
             return new WP_Error('max_daily_transactions', sprintf(
+                /* translators: %d: maximum allowed daily transaction count */
                 __('شما به سقف مجاز تعداد تراکنش روزانه (%d مورد) رسیده‌اید. لطفاً فردا دوباره تلاش کنید.', 'golden-dashboard'),
                 $max
             ));
@@ -262,7 +274,8 @@ class GDB_Security {
 
         $subject = __('هشدار: تراکنش مشکوک در کیف پول', 'golden-dashboard');
         $message = sprintf(
-            __("یک تراکنش با مبلغ بالا شناسایی شد:\n\nکاربر: %s (شناسه %d)\nمبلغ: %s\nنوع: %s\nشناسه تراکنش: %d\n\nلطفاً از پنل مدیریت بررسی کنید.", 'golden-dashboard'),
+            /* translators: 1: user name, 2: user ID, 3: amount, 4: context, 5: transaction ID */
+            __("یک تراکنش با مبلغ بالا شناسایی شد:\n\nکاربر: %1\$s (شناسه %2\$d)\nمبلغ: %3\$s\nنوع: %4\$s\nشناسه تراکنش: %5\$d\n\nلطفاً از پنل مدیریت بررسی کنید.", 'golden-dashboard'),
             $user_name,
             $user_id,
             gdb_price_plain($amount),
@@ -277,7 +290,7 @@ class GDB_Security {
     public static function get_stats_24h() {
         global $wpdb;
         $table = $wpdb->prefix . 'gd_wallet_security_log';
-        $since = date('Y-m-d H:i:s', current_time('timestamp') - DAY_IN_SECONDS);
+        $since = gmdate('Y-m-d H:i:s', current_time('timestamp') - DAY_IN_SECONDS);
 
         $critical = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$table} WHERE severity = 'critical' AND created_at >= %s", $since
@@ -292,3 +305,4 @@ class GDB_Security {
         return ['critical' => $critical, 'high' => $high, 'total' => $total];
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange

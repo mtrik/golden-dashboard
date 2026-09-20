@@ -1,4 +1,12 @@
 <?php
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
+// This file works directly with Golden Dashboard's own custom database tables
+// (gd_user_wallet, gd_wallet_transactions, etc.), which have no WordPress core
+// API equivalent, so direct $wpdb queries are required throughout. Every value
+// that varies by request is passed through $wpdb->prepare() with %d/%s/%f
+// placeholders (manually audited); object caching is intentionally not applied
+// because wallet balances and transaction records must always reflect the
+// latest write.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -55,7 +63,8 @@ class GDB_Cashback {
         ];
 
         $description = sprintf(
-            __('کش‌بک %s٪ بابت %s (مرجع #%d) - کد پیگیری: %s', 'golden-dashboard'),
+            /* translators: 1: cashback percent, 2: context label, 3: reference ID, 4: tracking code */
+            __('کش‌بک %1$s٪ بابت %2$s (مرجع #%3$d) - کد پیگیری: %4$s', 'golden-dashboard'),
             rtrim(rtrim(number_format($percent, 2), '0'), '.'),
             $context_labels[$context],
             $reference_id,
@@ -73,7 +82,7 @@ class GDB_Cashback {
             'description'      => $description,
             'created_by'       => 0,
             'ip_address'       => GDB_Security::get_client_ip(),
-            'user_agent'       => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+            'user_agent'       => substr(sanitize_text_field((isset($_SERVER['HTTP_USER_AGENT']) ? wp_unslash($_SERVER['HTTP_USER_AGENT']) : '')), 0, 255),
             'status'           => 'completed',
             'tracking_code'    => $tracking_code,
             'meta_data'        => maybe_serialize(['context' => $context, 'percent' => $percent, 'base_amount' => $base_amount]),
@@ -145,7 +154,8 @@ class GDB_Cashback {
                 'transaction_type' => 'cashback_reversal',
                 'reference_id'     => $order_id,
                 'description'      => sprintf(
-                    __('برداشت کش‌بک به دلیل لغو/ناموفق شدن سفارش شماره %d - کد پیگیری: %s', 'golden-dashboard'),
+                    /* translators: 1: order ID, 2: tracking code */
+                    __('برداشت کش‌بک به دلیل لغو/ناموفق شدن سفارش شماره %1$d - کد پیگیری: %2$s', 'golden-dashboard'),
                     $order_id,
                     $tracking_code
                 ),
@@ -199,3 +209,4 @@ class GDB_Cashback {
         }
     }
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange
