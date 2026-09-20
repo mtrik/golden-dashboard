@@ -6,8 +6,8 @@
  * Version: 1.0.0
  * Requires at least: 6.5
  * Requires PHP: 7.4
- * Author: Mt Omidi & Ali Badri
- * Author URI: https://www.mtomidi.com
+ * Author: MTRIK
+ * Author URI: https://profiles.wordpress.org/mtrik/
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: golden-dashboard
